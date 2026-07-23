@@ -2,14 +2,15 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
-    namespace 'com.summit.android'
+    namespace 'com.truesummit.android'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.summit.android"
+        applicationId "com.truesummit.android"
         minSdk 24
         targetSdk 34
         versionCode 1
@@ -36,9 +37,6 @@ android {
     }
     buildFeatures {
         compose true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.8'
     }
     packagingOptions {
         resources {

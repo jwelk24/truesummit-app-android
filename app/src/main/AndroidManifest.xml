@@ -10,11 +10,11 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Summit">
+        android:theme="@style/Theme.TrueSummit">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Summit">
+            android:theme="@style/Theme.TrueSummit">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -24,8 +24,8 @@
         <receiver android:name=".service.EngagementNudgesReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.summit.android.NUDGE_WEEKLY" />
-                <action android:name="com.summit.android.NUDGE_MONTHLY" />
+                <action android:name="com.truesummit.android.NUDGE_WEEKLY" />
+                <action android:name="com.truesummit.android.NUDGE_MONTHLY" />
             </intent-filter>
         </receiver>
 
@@ -61,7 +61,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.summit.android.fileprovider"
+            android:authorities="com.truesummit.android.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
