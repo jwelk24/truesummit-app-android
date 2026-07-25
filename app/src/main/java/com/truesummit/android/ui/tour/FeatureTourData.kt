@@ -55,6 +55,16 @@ val tourStops: List<TourStop> = listOf(
         )
     ),
     TourStop(
+        route = Screen.Peaks.route,
+        tabTitle = "Your Peaks",
+        headline = "Climb toward your goals.",
+        features = listOf(
+            TourFeature("flag", "Savings goals", "Each peak is a savings goal with a target amount and optional deadline."),
+            TourFeature("trending_up", "Live progress", "The progress bar fills as you assign money to the goal's category each month."),
+            TourFeature("add_circle", "Add a peak", "Tap + to name a goal and set a target — a savings category is created automatically.")
+        )
+    ),
+    TourStop(
         route = Screen.Reports.route,
         tabTitle = "Reports",
         headline = "Look back with clarity.",
@@ -65,23 +75,14 @@ val tourStops: List<TourStop> = listOf(
         )
     ),
     TourStop(
-        route = Screen.Insights.route,
-        tabTitle = "Insights",
-        headline = "Your money, coached.",
-        features = listOf(
-            TourFeature("auto_awesome", "AI insights", "On-device analysis spots trends and patterns automatically."),
-            TourFeature("checklist", "Weekly Review", "A five-minute check-in ritual, with a streak to keep alive."),
-            TourFeature("emoji_events", "Challenges & Wrapped", "Savings challenges year-round, and a Wrapped-style year in review.")
-        )
-    ),
-    TourStop(
         route = Screen.Settings.route,
         tabTitle = "Settings",
-        headline = "Tune Summit to you.",
+        headline = "Tune TrueSummit to you.",
         features = listOf(
             TourFeature("cloud", "Sync & Account", "Sign in to back up your data and share a budget with a partner."),
             TourFeature("auto_fix_high", "Rules & Smart Alerts", "Auto-categorize merchants and get bill reminders."),
-            TourFeature("palette", "Make it yours", "Customize your appearance and notification preferences.")
+            TourFeature("palette", "Make it yours", "Customize your appearance and notification preferences."),
+            TourFeature("lock", "Privacy & Data", "See exactly what syncs, and export or erase everything.")
         )
     )
 )
