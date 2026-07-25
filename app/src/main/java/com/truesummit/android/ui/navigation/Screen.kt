@@ -41,6 +41,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object FeatureGuide : Screen("feature_guide", "Feature Guide", Icons.Default.Map)
     object MonthRecap : Screen("month_recap", "Month Recap", Icons.Default.CalendarMonth)
     object PrivacyData : Screen("privacy_data", "Privacy & Data", Icons.Default.Lock)
+    object Peaks : Screen("peaks", "Your Peaks", Icons.Default.Flag)
 }
 
 val bottomNavItems = listOf(
@@ -48,7 +49,7 @@ val bottomNavItems = listOf(
     Screen.Transactions,
     Screen.NetWorth,
     Screen.Horizon,
+    Screen.Peaks,
     Screen.Reports,
-    Screen.Insights,
     Screen.Settings
 )

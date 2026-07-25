@@ -42,6 +42,7 @@ import com.truesummit.android.ui.rules.RuleEditorScreen
 import com.truesummit.android.ui.subscriptions.SubscriptionsScreen
 import com.truesummit.android.ui.transactions.RefundTrackerScreen
 import com.truesummit.android.ui.whatif.WhatIfScreen
+import com.truesummit.android.ui.peaks.PeaksScreen
 import com.truesummit.android.ui.wrapped.WrappedScreen
 import com.truesummit.android.ui.coach.CoachScreen
 import com.truesummit.android.ui.savetospend.SafeToSpendScreen
@@ -160,6 +161,9 @@ fun MainScreen() {
             }
             composable(Screen.CashFlowForecast.route) {
                 CashFlowForecastScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Peaks.route) {
+                PeaksScreen(onNavigateToCategory = { /* TODO: open category detail */ })
             }
             composable(Screen.Reports.route) { ReportsScreen() }
             composable(Screen.Insights.route) {
