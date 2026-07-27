@@ -50,6 +50,5 @@ val bottomNavItems = listOf(
     Screen.NetWorth,
     Screen.Horizon,
     Screen.Peaks,
-    Screen.Reports,
-    Screen.Settings
+    Screen.Reports
 )

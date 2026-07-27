@@ -41,7 +41,7 @@ fun TrueSummitMountainView(
         label = "trend"
     )
 
-    Canvas(modifier = modifier.fillMaxWidth().height(210.dp)) {
+    Canvas(modifier = Modifier.fillMaxWidth().height(210.dp).then(modifier)) {
         drawMountainScene(animSavings, animBudget, animTrend)
     }
 }
