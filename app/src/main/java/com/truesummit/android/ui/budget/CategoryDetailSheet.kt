@@ -273,7 +273,7 @@ fun CategoryDetailSheet(
                 }
             } else {
                 items(state.transactions) { tx ->
-                    TransactionRow(transaction = tx)
+                    TransactionRow(transaction = tx, categoryName = categoryName, categoryColor = barColor)
                     HorizontalDivider()
                 }
             }
