@@ -3,6 +3,7 @@ package com.truesummit.android.ui.horizon
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -20,6 +21,7 @@ import com.truesummit.android.data.model.ScheduledKind
 import com.truesummit.android.ui.horizon.viewmodel.HorizonUiState
 import com.truesummit.android.ui.horizon.viewmodel.HorizonViewModel
 import com.truesummit.android.ui.horizon.viewmodel.ProjectionPoint
+import com.truesummit.android.ui.theme.SummitColors
 import com.truesummit.android.ui.transactions.formatCurrency
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
@@ -106,16 +108,22 @@ fun HorizonScreen(
 
 @Composable
 fun HorizonSummaryCard(uiState: HorizonUiState) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            SummaryRow("Starting Balance", uiState.startingBalance)
-            SummaryRow("Lowest Projected", uiState.lowestProjected, isBold = true)
-            SummaryRow("90-Day Projected", uiState.projected90Day, isBold = true)
+    // Matches the dark Slate2 + light-text card style used by the Budget
+    // category tiles, so text must be pinned to light-on-dark colors rather
+    // than the ambient onSurface, which flips dark under the light theme.
+    CompositionLocalProvider(LocalContentColor provides SummitColors.Ice) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SummitColors.Slate2)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                SummaryRow("Starting Balance", uiState.startingBalance)
+                SummaryRow("Lowest Projected", uiState.lowestProjected, isBold = true)
+                SummaryRow("90-Day Projected", uiState.projected90Day, isBold = true)
+            }
         }
     }
 }
@@ -130,7 +138,7 @@ fun SummaryRow(label: String, amount: BigDecimal, isBold: Boolean = false) {
         Text(
             text = formatCurrency(amount.toDouble()),
             style = if (isBold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-            color = if (amount < BigDecimal.ZERO) Color.Red else Color.Unspecified
+            color = if (amount < BigDecimal.ZERO) Color(0xFFFF6B6B) else Color.Unspecified
         )
     }
 }
