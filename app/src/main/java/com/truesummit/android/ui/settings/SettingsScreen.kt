@@ -22,10 +22,20 @@ fun SettingsScreen(
     onSubscriptions: () -> Unit,
     onCustomizeAppearance: () -> Unit,
     onFeatureGuide: () -> Unit = {},
-    onPrivacyData: () -> Unit = {}
+    onPrivacyData: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
     ) { padding ->
         var displayName by remember { mutableStateOf(OnboardingState.userDisplayName) }
         LazyColumn(

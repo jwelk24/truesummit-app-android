@@ -30,6 +30,7 @@ import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.GoalEntity
 import com.truesummit.android.data.entity.TransactionEntity
 import com.truesummit.android.service.BudgetEngine
+import com.truesummit.android.service.BudgetRollover
 import com.truesummit.android.service.GoalForecast
 import com.truesummit.android.service.GoalPace
 import com.truesummit.android.ui.theme.summitCategoryEmoji
@@ -190,6 +191,22 @@ fun CategoryDetailSheet(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
                 )
                 Spacer(Modifier.height(12.dp))
+                if (BudgetRollover.isEnabled) {
+                    var excluded by remember { mutableStateOf(BudgetRollover.isExcluded(categoryId)) }
+                    ListItem(
+                        headlineContent = { Text("Roll Over Unspent") },
+                        supportingContent = { Text("Carry leftover balance into next month.") },
+                        trailingContent = {
+                            Switch(
+                                checked = !excluded,
+                                onCheckedChange = {
+                                    excluded = !it
+                                    BudgetRollover.setExcluded(categoryId, excluded)
+                                }
+                            )
+                        }
+                    )
+                }
                 HorizontalDivider()
             }
 

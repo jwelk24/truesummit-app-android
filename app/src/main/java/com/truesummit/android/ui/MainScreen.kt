@@ -67,6 +67,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -293,7 +294,8 @@ fun MainScreen() {
                     onSubscriptions = { navController.navigate(Screen.Subscriptions.route) },
                     onCustomizeAppearance = { navController.navigate(Screen.CustomizeAppearance.route) },
                     onFeatureGuide = { navController.navigate(Screen.FeatureGuide.route) },
-                    onPrivacyData = { navController.navigate(Screen.PrivacyData.route) }
+                    onPrivacyData = { navController.navigate(Screen.PrivacyData.route) },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.PrivacyData.route) {

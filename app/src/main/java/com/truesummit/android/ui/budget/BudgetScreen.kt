@@ -2,7 +2,6 @@ package com.truesummit.android.ui.budget
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -137,16 +136,35 @@ fun BudgetScreen(
                     item {
                         GroupHeader(group.name)
                     }
-                    items(uiState.categories.filter { it.groupId == group.id }) { category ->
-                        val cal = java.util.Calendar.getInstance()
-                        cal.time = uiState.selectedDate
-                        CategoryRow(
-                            category = category,
-                            assigned = uiState.allocations[category.id] ?: BigDecimal.ZERO,
-                            activity = uiState.activity[category.id] ?: BigDecimal.ZERO,
-                            projectedSpend = uiState.projectedSpend[category.id],
-                            onAssignedChange = { viewModel.setAssigned(category.id, it) }
-                        )
+                    item {
+                        val groupCategories = uiState.categories.filter { it.groupId == group.id }
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            for (row in groupCategories.chunked(2)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    for (category in row) {
+                                        val tile = uiState.categoryTilesById[category.id] ?: CategoryTileData(
+                                            id = category.id,
+                                            name = category.name,
+                                            spent = (uiState.activity[category.id] ?: BigDecimal.ZERO).abs(),
+                                            budget = uiState.allocations[category.id] ?: BigDecimal.ZERO,
+                                            index = 0
+                                        )
+                                        SummitCategoryTileCard(
+                                            tile = tile,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = {
+                                                selectedTileName = category.name
+                                                selectedTileId = category.id
+                                            }
+                                        )
+                                    }
+                                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -212,63 +230,3 @@ fun GroupHeader(name: String) {
     }
 }
 
-@Composable
-fun CategoryRow(
-    category: CategoryEntity,
-    assigned: BigDecimal,
-    activity: BigDecimal,
-    projectedSpend: BigDecimal? = null,
-    onAssignedChange: (BigDecimal) -> Unit
-) {
-    val available = assigned.add(activity)
-    val rolloverEnabled = com.truesummit.android.service.BudgetRollover.isEnabled
-    var showContextMenu by remember { mutableStateOf(false) }
-    val isExcluded = com.truesummit.android.service.BudgetRollover.isExcluded(category.id)
-
-    Box {
-        ListItem(
-            headlineContent = { Text(category.name) },
-            supportingContent = {
-                androidx.compose.foundation.layout.Column {
-                    Text("Activity: ${formatCurrency(activity.toDouble())} · Available: ${formatCurrency(available.toDouble())}")
-                    if (projectedSpend != null && assigned > BigDecimal.ZERO) {
-                        SpendingPacePill(
-                            projected = projectedSpend,
-                            budget = assigned,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            },
-            trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = assigned.toString(),
-                        onValueChange = {
-                            it.toBigDecimalOrNull()?.let { amt -> onAssignedChange(amt) }
-                        },
-                        modifier = Modifier.width(100.dp),
-                        textStyle = MaterialTheme.typography.bodyMedium
-                    )
-                    if (rolloverEnabled) {
-                        IconButton(onClick = { showContextMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Category options")
-                        }
-                    }
-                }
-            }
-        )
-        if (rolloverEnabled) {
-            DropdownMenu(expanded = showContextMenu, onDismissRequest = { showContextMenu = false }) {
-                DropdownMenuItem(
-                    text = { Text(if (isExcluded) "Enable Rollover" else "Exclude from Rollover") },
-                    onClick = {
-                        com.truesummit.android.service.BudgetRollover.setExcluded(category.id, !isExcluded)
-                        showContextMenu = false
-                    },
-                    leadingIcon = { Icon(Icons.Default.Repeat, contentDescription = null) }
-                )
-            }
-        }
-    }
-}

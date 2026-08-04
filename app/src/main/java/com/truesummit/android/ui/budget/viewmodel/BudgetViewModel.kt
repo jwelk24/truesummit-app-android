@@ -9,6 +9,7 @@ import com.truesummit.android.data.entity.CategoryEntity
 import com.truesummit.android.data.entity.CategoryGroupEntity
 import com.truesummit.android.service.BudgetEngine
 import com.truesummit.android.service.GoalForecast
+import com.truesummit.android.ui.budget.CategoryBarColor
 import com.truesummit.android.ui.budget.CategoryTileData
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ data class BudgetUiState(
     val netWorthTrend: Double = 0.5,
     val insight: String = "",
     val categoryTiles: List<CategoryTileData> = emptyList(),
+    val categoryTilesById: Map<UUID, CategoryTileData> = emptyMap(),
     val projectedSpend: Map<UUID, BigDecimal> = emptyMap()
 )
 
@@ -84,7 +86,13 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         val totalActivity = activityMap.values.fold(BigDecimal.ZERO, BigDecimal::add)
         val totalSpent = totalActivity.abs()
         val insight = buildInsight(available, totalAssigned, totalSpent, income)
-        val tiles = categories.take(8).mapIndexed { idx, cat ->
+
+        val projectedSpendMap = categories.associate { cat ->
+            val catActivity = activityMap[cat.id] ?: BigDecimal.ZERO
+            cat.id to (engine.projectedMonthlySpend(catActivity, year, month) ?: BigDecimal.ZERO)
+        }.filter { (_, v) -> v > BigDecimal.ZERO }
+
+        val allTiles = categories.mapIndexed { idx, cat ->
             val catAssigned = allocationMap[cat.id] ?: BigDecimal.ZERO
             val catActivity = activityMap[cat.id] ?: BigDecimal.ZERO
             val catSpent = catActivity.abs()
@@ -107,14 +115,12 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
                 spent = catSpent,
                 budget = catAssigned,
                 index = idx,
-                goalPace = goalPace
+                customColor = CategoryBarColor.effectiveColor(getApplication(), cat.id, cat.name),
+                goalPace = goalPace,
+                projectedSpend = projectedSpendMap[cat.id]
             )
-        }.filter { it.budget > BigDecimal.ZERO }
-
-        val projectedSpendMap = categories.associate { cat ->
-            val catActivity = activityMap[cat.id] ?: BigDecimal.ZERO
-            cat.id to (engine.projectedMonthlySpend(catActivity, year, month) ?: BigDecimal.ZERO)
-        }.filter { (_, v) -> v > BigDecimal.ZERO }
+        }
+        val tiles = allTiles.filter { it.budget > BigDecimal.ZERO }.take(8)
 
         BudgetUiState(
             groups = groups,
@@ -130,6 +136,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             netWorthTrend = 0.5,
             insight = insight,
             categoryTiles = tiles,
+            categoryTilesById = allTiles.associateBy { it.id },
             projectedSpend = projectedSpendMap
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BudgetUiState())

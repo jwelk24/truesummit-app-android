@@ -284,14 +284,14 @@ private fun PeakCard(card: PeakCardData, accentColor: Color, onClick: () -> Unit
             ) {
                 Column {
                     Text(
-                        text = formatCurrency(card.saved),
+                        text = formatCurrency(card.saved.toDouble()),
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "of ${formatCurrency(card.goal.targetAmount)}",
+                        text = "of ${formatCurrency(card.goal.targetAmount.toDouble())}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )

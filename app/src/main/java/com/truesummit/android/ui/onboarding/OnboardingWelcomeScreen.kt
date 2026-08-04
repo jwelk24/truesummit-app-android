@@ -111,7 +111,7 @@ class OnboardingWizardViewModel(application: Application) : AndroidViewModel(app
 
             var budgetMonth = db.budgetDao().getMonth(year, month)
             if (budgetMonth == null) {
-                budgetMonth = BudgetMonthEntity(year = year, month = month)
+                budgetMonth = BudgetMonthEntity(year = year, month = month, carryover = BigDecimal.ZERO)
                 db.budgetDao().insertMonth(budgetMonth)
             }
             for ((starterId, amount) in assignments) {
@@ -207,7 +207,7 @@ fun OnboardingWelcomeScreen(
         else -> true
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Progress header
         Row(
             modifier = Modifier
@@ -341,7 +341,7 @@ private fun AccountsStep(accounts: List<DraftAccount>, readyToAssign: BigDecimal
             Text("Add another account")
         }
         if (readyToAssign > BigDecimal.ZERO) {
-            Text("Cash on hand: ${formatCurrency(readyToAssign)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            Text("Cash on hand: ${formatCurrency(readyToAssign.toDouble())}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -351,7 +351,7 @@ private fun ReadyToAssignStep(readyToAssign: BigDecimal) {
     WizardPage(icon = "📥", title = "Ready to Assign", subtitle = "This is the money in your cash accounts waiting for a job.") {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(formatCurrency(readyToAssign), fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 44.sp, color = SummitColors.Teal)
+                Text(formatCurrency(readyToAssign.toDouble()), fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 44.sp, color = SummitColors.Teal)
                 Text(
                     if (readyToAssign > BigDecimal.ZERO) "Next, you'll give every dollar a job."
                     else "You can still set up categories and assign money as it comes in.",
@@ -431,7 +431,7 @@ private fun AssignStep(chosenCategories: List<StarterCategory>, assignments: Map
             Column {
                 Text(bannerLabel, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = bannerColor, letterSpacing = 1.1.sp)
                 if (leftToAssign != BigDecimal.ZERO) {
-                    Text(formatCurrency(leftToAssign.abs()), fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Text(formatCurrency(leftToAssign.abs().toDouble()), fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                 }
             }
         }

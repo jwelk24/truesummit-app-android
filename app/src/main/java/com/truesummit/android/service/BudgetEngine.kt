@@ -490,49 +490,221 @@ class BudgetEngine(context: Context) {
         val existing = db.accountDao().getAll().first()
         if (existing.isNotEmpty()) return
 
+        // ── Accounts ────────────────────────────────────────────────────────
+        val checking    = AccountEntity(name = "Chase Checking",  type = AccountType.CHECKING,    balance = BigDecimal("4820"),   currencyCode = "USD")
+        val savings     = AccountEntity(name = "High-Yield Savings", type = AccountType.SAVINGS,  balance = BigDecimal("12400"),  currencyCode = "USD")
+        val creditCard  = AccountEntity(name = "Visa Signature",  type = AccountType.CREDIT_CARD, balance = BigDecimal("-680"),   currencyCode = "USD")
+        val brokerage   = AccountEntity(name = "Brokerage",       type = AccountType.INVESTMENT,  balance = BigDecimal("18500"),  currencyCode = "USD")
+        val retirement  = AccountEntity(name = "401(k)",          type = AccountType.RETIREMENT,  balance = BigDecimal("54200"),  currencyCode = "USD")
+        for (it in listOf(checking, savings, creditCard, brokerage, retirement)) {
+            db.accountDao().insert(it)
+        }
+
+        // ── Category groups & categories ────────────────────────────────────
+        val needs       = CategoryGroupEntity(name = "Needs (Fixed Expenses)",    sort = 0)
+        val wants       = CategoryGroupEntity(name = "Wants (Flexible Expenses)", sort = 1)
+        val savingsGrp  = CategoryGroupEntity(name = "Savings & Debt",            sort = 2)
+        val goalsGrp    = CategoryGroupEntity(name = "Goals",                     sort = 3)
+        val cardPayGrp  = CategoryGroupEntity(name = "Credit Card Payments",      sort = 4)
+        for (it in listOf(needs, wants, savingsGrp, goalsGrp, cardPayGrp)) {
+            db.categoryDao().insertGroup(it)
+        }
+
+        val housing     = CategoryEntity(name = "Housing",                    sort = 0, groupId = needs.id,      linkedAccountId = null)
+        val utilities   = CategoryEntity(name = "Utilities",                  sort = 1, groupId = needs.id,      linkedAccountId = null)
+        val groceries   = CategoryEntity(name = "Groceries",                  sort = 2, groupId = needs.id,      linkedAccountId = null)
+        val transport   = CategoryEntity(name = "Transportation",              sort = 3, groupId = needs.id,      linkedAccountId = null)
+        val insurance   = CategoryEntity(name = "Insurance",                  sort = 4, groupId = needs.id,      linkedAccountId = null)
+        val dining      = CategoryEntity(name = "Dining Out & Entertainment", sort = 0, groupId = wants.id,      linkedAccountId = null)
+        val subscriptions = CategoryEntity(name = "Subscriptions",            sort = 1, groupId = wants.id,      linkedAccountId = null)
+        val personalCare  = CategoryEntity(name = "Personal Care & Clothing", sort = 2, groupId = wants.id,      linkedAccountId = null)
+        val travel      = CategoryEntity(name = "Vacation & Travel",          sort = 3, groupId = wants.id,      linkedAccountId = null)
+        val gifts       = CategoryEntity(name = "Gifts & Donations",          sort = 4, groupId = wants.id,      linkedAccountId = null)
+        val debtRepay   = CategoryEntity(name = "Debt Repayment",             sort = 0, groupId = savingsGrp.id, linkedAccountId = null)
+        val savingsInv  = CategoryEntity(name = "Savings & Investments",      sort = 1, groupId = savingsGrp.id, linkedAccountId = null)
+        val japanTrip   = CategoryEntity(name = "Japan Trip",                 sort = 0, groupId = goalsGrp.id,   linkedAccountId = null)
+        val downPayment = CategoryEntity(name = "House Down Payment",         sort = 1, groupId = goalsGrp.id,   linkedAccountId = null)
+        val creditCardCat = CategoryEntity(name = creditCard.name,            sort = 0, groupId = cardPayGrp.id, linkedAccountId = creditCard.id)
+        for (it in listOf(housing, utilities, groceries, transport, insurance, dining, subscriptions,
+            personalCare, travel, gifts, debtRepay, savingsInv, japanTrip, downPayment, creditCardCat)) {
+            db.categoryDao().insertCategory(it)
+        }
+
+        // ── Goals ────────────────────────────────────────────────────────────
+        val targetJapan = date(2026, 10, 1)
+        val targetDown  = date(2028, 6, 1)
+        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("5000"),  targetDate = targetJapan, categoryId = japanTrip.id))
+        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("60000"), targetDate = targetDown,  categoryId = downPayment.id))
+        db.goalDao().insert(GoalEntity(type = GoalType.SAVINGS_TARGET,  targetAmount = BigDecimal("25000"), targetDate = null,        categoryId = savingsInv.id))
+
+        // ── Scheduled bills ──────────────────────────────────────────────────
+        val nextMonth1st = date(2026, 8, 1)
+        val nextMonth15th = date(2026, 8, 15)
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Rent",         amount = BigDecimal("1850"), nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = housing.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Electric",     amount = BigDecimal("95"),   nextDate = nextMonth15th, intervalDays = 30,  accountId = checking.id, categoryId = utilities.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Internet",     amount = BigDecimal("65"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = utilities.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Spotify",      amount = BigDecimal("11"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = subscriptions.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Netflix",      amount = BigDecimal("15"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = subscriptions.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Car Insurance",amount = BigDecimal("142"),  nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = insurance.id))
+        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.PAYCHECK, name = "Paycheck",   amount = BigDecimal("3200"), nextDate = date(2026, 8, 1), intervalDays = 14, accountId = checking.id, categoryId = null))
+
+        // ── 6 months of budget months + allocations + transactions ───────────
         val cal = Calendar.getInstance()
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH) + 1
+        val curYear  = cal.get(Calendar.YEAR)
+        val curMonth = cal.get(Calendar.MONTH) + 1
 
-        val checking = AccountEntity(name = "Checking", type = AccountType.CHECKING, balance = BigDecimal("3800"), currencyCode = "USD")
-        val savings = AccountEntity(name = "Savings", type = AccountType.SAVINGS, balance = BigDecimal("5000"), currencyCode = "USD")
-        val creditCard = AccountEntity(name = "Credit Card", type = AccountType.CREDIT_CARD, balance = BigDecimal("-450"), currencyCode = "USD")
-        listOf(checking, savings, creditCard).forEach { db.accountDao().insert(it) }
+        data class MonthSpec(val year: Int, val month: Int)
+        fun prevMonths(n: Int): List<MonthSpec> = (n downTo 0).map { offset ->
+            val c = Calendar.getInstance()
+            c.add(Calendar.MONTH, -offset)
+            MonthSpec(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1)
+        }
+        val months = prevMonths(5) // 5 months ago … current
 
-        val needs = CategoryGroupEntity(name = "Needs (Fixed Expenses)", sort = 0)
-        val wants = CategoryGroupEntity(name = "Wants (Flexible Expenses)", sort = 1)
-        val savingsDebt = CategoryGroupEntity(name = "Savings & Debt", sort = 2)
-        val cardPayments = CategoryGroupEntity(name = "Credit Card Payments", sort = 3)
-        listOf(needs, wants, savingsDebt, cardPayments).forEach { db.categoryDao().insertGroup(it) }
+        // Income varies slightly each month (bi-weekly pay = 2 or 3 cheques)
+        val incomes = listOf(6400, 6400, 9600, 6400, 6400, 6400)
 
-        val creditCardCat = CategoryEntity(name = creditCard.name, sort = 0, groupId = cardPayments.id, linkedAccountId = creditCard.id)
-        val housing = CategoryEntity(name = "Housing", sort = 0, groupId = needs.id, linkedAccountId = null)
-        val utilities = CategoryEntity(name = "Utilities", sort = 1, groupId = needs.id, linkedAccountId = null)
-        val groceries = CategoryEntity(name = "Groceries", sort = 2, groupId = needs.id, linkedAccountId = null)
-        val transportation = CategoryEntity(name = "Transportation", sort = 3, groupId = needs.id, linkedAccountId = null)
-        val insurance = CategoryEntity(name = "Insurance", sort = 4, groupId = needs.id, linkedAccountId = null)
-        val dining = CategoryEntity(name = "Dining Out & Entertainment", sort = 0, groupId = wants.id, linkedAccountId = null)
-        val subscriptions = CategoryEntity(name = "Subscriptions", sort = 1, groupId = wants.id, linkedAccountId = null)
-        val personalCare = CategoryEntity(name = "Personal Care & Clothing", sort = 2, groupId = wants.id, linkedAccountId = null)
-        val travel = CategoryEntity(name = "Vacation & Travel", sort = 3, groupId = wants.id, linkedAccountId = null)
-        val gifts = CategoryEntity(name = "Gifts & Donations", sort = 4, groupId = wants.id, linkedAccountId = null)
-        val debtRepayment = CategoryEntity(name = "Debt Repayment", sort = 0, groupId = savingsDebt.id, linkedAccountId = null)
-        val savingsInvestments = CategoryEntity(name = "Savings & Investments", sort = 1, groupId = savingsDebt.id, linkedAccountId = null)
-        listOf(creditCardCat, housing, utilities, groceries, transportation, insurance,
-            dining, subscriptions, personalCare, travel, gifts, debtRepayment, savingsInvestments)
-            .forEach { db.categoryDao().insertCategory(it) }
+        for ((idx, ms) in months.withIndex()) {
+            val isCurrent = (ms.year == curYear && ms.month == curMonth)
+            val income = BigDecimal(incomes[idx])
 
-        val monthRec = BudgetMonthEntity(year = year, month = month, carryover = BigDecimal.ZERO)
-        db.budgetDao().insertMonth(monthRec)
-        db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal("1800"), categoryId = housing.id, monthId = monthRec.id))
-        db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal("300"), categoryId = groceries.id, monthId = monthRec.id))
-        db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal("400"), categoryId = savingsInvestments.id, monthId = monthRec.id))
+            val bm = BudgetMonthEntity(year = ms.year, month = ms.month, carryover = BigDecimal.ZERO)
+            db.budgetDao().insertMonth(bm)
 
-        val now = Date()
-        val tx1 = TransactionEntity(date = now, amount = BigDecimal("2500"), merchant = "Employer", memo = null, cleared = true, flagColor = null, pfcPrimary = null, accountId = checking.id, categoryId = null)
-        val tx2 = TransactionEntity(date = now, amount = BigDecimal("-120"), merchant = "Whole Foods", memo = null, cleared = true, flagColor = null, pfcPrimary = null, accountId = checking.id, categoryId = groceries.id)
-        val tx3 = TransactionEntity(date = now, amount = BigDecimal("-45"), merchant = "Chipotle", memo = null, cleared = true, flagColor = null, pfcPrimary = null, accountId = checking.id, categoryId = dining.id)
-        listOf(tx1, tx2, tx3).forEach { db.transactionDao().insert(it) }
+            suspend fun alloc(amount: Int, catId: java.util.UUID) =
+                db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal(amount), categoryId = catId, monthId = bm.id))
+
+            alloc(1850, housing.id)
+            alloc(160,  utilities.id)
+            alloc(420,  groceries.id)
+            alloc(200,  transport.id)
+            alloc(142,  insurance.id)
+            alloc(280,  dining.id)
+            alloc(41,   subscriptions.id)
+            alloc(120,  personalCare.id)
+            alloc(if (idx == 2) 1400 else 50, travel.id)   // big travel month (month 3)
+            alloc(60,   gifts.id)
+            alloc(300,  debtRepay.id)
+            alloc(500,  savingsInv.id)
+            alloc(400,  japanTrip.id)
+            alloc(300,  downPayment.id)
+            alloc(680,  creditCardCat.id)
+
+            // ── Transactions ────────────────────────────────────────────────
+            fun tx(day: Int, amount: String, merchant: String, catId: java.util.UUID?, acctId: java.util.UUID = checking.id, pfcPrimary: String? = null) =
+                TransactionEntity(date = date(ms.year, ms.month, day), amount = BigDecimal(amount), merchant = merchant,
+                    memo = null, cleared = true, flagColor = null, pfcPrimary = pfcPrimary, accountId = acctId, categoryId = catId)
+
+            // Income (1st and 15th; month[2] gets an extra 15th-ish paycheck)
+            db.transactionDao().insert(tx(1,  income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, checking.id, "Income"))
+            db.transactionDao().insert(tx(15, income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, checking.id, "Income"))
+            if (idx == 2) db.transactionDao().insert(tx(28, "3200", "Acme Corp Bonus",  null, checking.id, "Income"))
+
+            // Housing
+            db.transactionDao().insert(tx(1, "-1850", "Elm Street Apartments", housing.id))
+
+            // Utilities (vary a little)
+            val elec = listOf(88, 95, 102, 91, 97, 89)
+            db.transactionDao().insert(tx(12, "-${elec[idx]}", "City Power Co", utilities.id))
+            db.transactionDao().insert(tx(3,  "-65",  "Xfinity Internet",   utilities.id))
+            db.transactionDao().insert(tx(10, "-14",  "Water Utility",      utilities.id))
+
+            // Groceries (3–4 trips)
+            val grocTotal = listOf(390, 418, 445, 402, 411, 428)
+            db.transactionDao().insert(tx(3,  "-${(grocTotal[idx] * 0.30).toInt()}", "Whole Foods",        groceries.id))
+            db.transactionDao().insert(tx(9,  "-${(grocTotal[idx] * 0.25).toInt()}", "Trader Joe's",       groceries.id))
+            db.transactionDao().insert(tx(17, "-${(grocTotal[idx] * 0.26).toInt()}", "Kroger",             groceries.id))
+            db.transactionDao().insert(tx(24, "-${(grocTotal[idx] * 0.19).toInt()}", "Costco",             groceries.id))
+
+            // Transportation
+            db.transactionDao().insert(tx(5,  "-52",  "Shell Gas",          transport.id))
+            db.transactionDao().insert(tx(18, "-48",  "Circle K",           transport.id))
+            if (idx % 2 == 0) db.transactionDao().insert(tx(22, "-35", "Lyft",            transport.id))
+
+            // Insurance
+            db.transactionDao().insert(tx(1, "-142",  "GEICO",              insurance.id))
+
+            // Dining
+            val diningMerchants = listOf(
+                listOf("-28" to "Chipotle", "-62" to "Nobu", "-18" to "Starbucks", "-24" to "Shake Shack"),
+                listOf("-35" to "Sushi Nakazawa", "-22" to "Dunkin", "-31" to "The Spotted Pig", "-19" to "Sweetgreen"),
+                listOf("-44" to "Eleven Madison Park", "-18" to "Blue Bottle Coffee", "-29" to "Joe's Pizza", "-38" to "Momofuku"),
+                listOf("-26" to "Tacos El Pastor", "-15" to "Starbucks", "-42" to "Gramercy Tavern", "-27" to "Dig"),
+                listOf("-33" to "Emily Restaurant", "-21" to "Think Coffee", "-25" to "Shake Shack", "-30" to "Cote"),
+                listOf("-29" to "Los Tacos No.1", "-17" to "La Colombe", "-48" to "Le Bernardin", "-22" to "Sweetgreen")
+            )
+            diningMerchants[idx].forEachIndexed { i, (amt, name) ->
+                db.transactionDao().insert(tx(6 + i * 5, amt, name, dining.id, creditCard.id))
+            }
+
+            // Subscriptions
+            db.transactionDao().insert(tx(1,  "-11",  "Spotify",           subscriptions.id))
+            db.transactionDao().insert(tx(1,  "-15",  "Netflix",           subscriptions.id))
+            db.transactionDao().insert(tx(5,  "-10",  "Apple iCloud+",     subscriptions.id))
+            if (idx == 0 || idx == 3) db.transactionDao().insert(tx(8, "-5", "NYT Digital", subscriptions.id))
+
+            // Personal care / clothing
+            val pcMerchants = listOf(
+                listOf("-65" to "Warby Parker", "-38" to "CVS Pharmacy"),
+                listOf("-22" to "Target Beauty", "-55" to "Uniqlo"),
+                listOf("-80" to "Nordstrom Rack", "-19" to "Walgreens"),
+                listOf("-45" to "Aesop", "-28" to "Target"),
+                listOf("-110" to "Allbirds", "-15" to "CVS Pharmacy"),
+                listOf("-35" to "Glossier", "-42" to "H&M")
+            )
+            pcMerchants[idx].forEach { (amt, name) ->
+                db.transactionDao().insert(tx(14, amt, name, personalCare.id, creditCard.id))
+            }
+
+            // Travel (month 2 = big trip)
+            if (idx == 2) {
+                db.transactionDao().insert(tx(8,  "-620",  "Delta Airlines",  travel.id))
+                db.transactionDao().insert(tx(9,  "-380",  "Marriott Miami",  travel.id))
+                db.transactionDao().insert(tx(10, "-95",   "Hertz Car Rental",travel.id))
+                db.transactionDao().insert(tx(11, "-68",   "Miami Beach Rest.",travel.id, creditCard.id))
+            } else {
+                db.transactionDao().insert(tx(20, "-${listOf(0,45,0,38,0,55)[idx]}", "Uber", travel.id))
+            }
+
+            // Gifts / donations
+            if (idx % 3 == 0) db.transactionDao().insert(tx(25, "-50", "Charity: Water", gifts.id))
+            if (idx == 1)     db.transactionDao().insert(tx(20, "-80", "Amazon (gift)",  gifts.id))
+
+            // Debt repayment (student loan)
+            db.transactionDao().insert(tx(10, "-300", "Navient Student Loan", debtRepay.id))
+
+            // Savings transfer
+            db.transactionDao().insert(tx(2,  "-500", "Transfer to Savings", savingsInv.id))
+            db.transactionDao().insert(tx(2,  "500",  "Transfer from Checking", savingsInv.id, savings.id))
+
+            // Goal contributions
+            db.transactionDao().insert(tx(3, "-400", "Japan Trip Fund", japanTrip.id))
+            db.transactionDao().insert(tx(3, "-300", "Down Payment Fund", downPayment.id))
+
+            // Credit card payment
+            db.transactionDao().insert(tx(20, "-680", "Visa Signature Payment", creditCardCat.id))
+            db.transactionDao().insert(tx(20, "680",  "Credit Card Payment",    null, creditCard.id))
+
+            // ── End-of-month balance snapshots ───────────────────────────────
+            if (!isCurrent) {
+                val checkingBal = BigDecimal(listOf(3100, 3350, 5200, 3600, 3800, 4820)[idx])
+                val savingsBal  = BigDecimal(listOf(9800, 10300, 10800, 11300, 11850, 12400)[idx])
+                val brokerageBal = BigDecimal(listOf(14200, 15100, 16000, 16800, 17600, 18500)[idx])
+                val retirementBal = BigDecimal(listOf(48000, 49200, 50400, 51400, 52800, 54200)[idx])
+                val snapDate = date(ms.year, ms.month, 28)
+                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = checkingBal,   accountId = checking.id))
+                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = savingsBal,    accountId = savings.id))
+                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = brokerageBal,  accountId = brokerage.id))
+                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = retirementBal, accountId = retirement.id))
+            }
+        }
+    }
+
+    private fun date(year: Int, month: Int, day: Int): Date {
+        val c = Calendar.getInstance()
+        c.set(year, month - 1, day, 12, 0, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.time
     }
 
     companion object {

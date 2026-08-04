@@ -2,6 +2,7 @@ package com.truesummit.android.ui.reports
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -16,10 +17,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.truesummit.android.service.ReportCompareMode
@@ -28,6 +36,7 @@ import com.truesummit.android.service.ReportSummary
 import com.truesummit.android.ui.reports.viewmodel.CategorySpending
 import com.truesummit.android.ui.reports.viewmodel.MonthlyFlow
 import com.truesummit.android.ui.reports.viewmodel.ReportsViewModel
+import com.truesummit.android.ui.theme.SummitColors
 import com.truesummit.android.ui.transactions.formatCurrency
 import java.io.File
 import java.math.BigDecimal
@@ -110,9 +119,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = viewModel()) {
                 }
             }
 
-            item {
-                SectionHeader("Spending This Month")
-            }
+            item { SectionHeader("Spending This Month") }
 
             if (uiState.currentMonthSpending.isEmpty()) {
                 item {
@@ -124,21 +131,24 @@ fun ReportsScreen(viewModel: ReportsViewModel = viewModel()) {
                     )
                 }
             } else {
-                items(uiState.currentMonthSpending) { spending ->
-                    SpendingBar(
-                        spending = spending,
-                        maxAmount = uiState.currentMonthSpending.first().amount,
-                        onClick = { drillDownCategory = spending.categoryName }
+                item {
+                    SpendingDonutChart(
+                        items = uiState.currentMonthSpending,
+                        onSliceTap = { drillDownCategory = it },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
             }
 
-            item {
-                SectionHeader("Income vs Spending (6 months)")
-            }
+            item { SectionHeader("Income vs Spending (6 months)") }
 
-            items(uiState.sixMonthFlow) { flow ->
-                FlowRow(flow)
+            if (uiState.sixMonthFlow.isNotEmpty()) {
+                item {
+                    MonthlyBarChart(
+                        flows = uiState.sixMonthFlow,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
     }
@@ -395,55 +405,197 @@ fun ReportsExportContent(
     }
 }
 
-@Composable
-fun SpendingBar(spending: CategorySpending, maxAmount: BigDecimal, onClick: (() -> Unit)? = null) {
-    val fraction = if (maxAmount > BigDecimal.ZERO) {
-        spending.amount.toDouble() / maxAmount.toDouble()
-    } else 0.0
+// ── Donut chart ────────────────────────────────────────────────────────────
 
-    Column(modifier = Modifier
-        .padding(horizontal = 16.dp, vertical = 8.dp)
-        .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)) {
-        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text(spending.categoryName, style = MaterialTheme.typography.bodyMedium)
-            Text(formatCurrency(spending.amount.toDouble()), style = MaterialTheme.typography.bodySmall)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Box(
+private val chartColors = listOf(
+    SummitColors.Teal,
+    SummitColors.Amber,
+    SummitColors.Rose,
+    SummitColors.Lavender,
+    Color(0xFF6EC6CA),
+    Color(0xFFFFD166),
+    Color(0xFFFF9F80),
+    Color(0xFFB8A9E0),
+)
+
+@Composable
+fun SpendingDonutChart(
+    items: List<CategorySpending>,
+    onSliceTap: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val top = items.take(8)
+    val total = top.fold(BigDecimal.ZERO) { acc, it -> acc + it.amount }
+    if (total <= BigDecimal.ZERO) return
+
+    val fractions = top.map { it.amount.toDouble() / total.toDouble() }
+
+    val density = LocalDensity.current
+    val strokeWidthPx = with(density) { 40.dp.toPx() }
+    val gapDeg = 2f
+
+    Column(modifier = modifier) {
+        Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .height(220.dp)
         ) {
-            Box(
+            val diameter = minOf(size.width, size.height) * 0.72f
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+            val arcSize = Size(diameter, diameter)
+            var startAngle = -90f
+
+            fractions.forEachIndexed { i, frac ->
+                val sweep = (frac.toFloat() * 360f - gapDeg).coerceAtLeast(0.5f)
+                drawArc(
+                    color = chartColors[i % chartColors.size],
+                    startAngle = startAngle,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidthPx)
+                )
+                startAngle += sweep + gapDeg
+            }
+
+            // Center label
+            val paint = android.graphics.Paint().apply {
+                textAlign = android.graphics.Paint.Align.CENTER
+                isAntiAlias = true
+            }
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+
+            paint.textSize = with(density) { 13.sp.toPx() }
+            paint.color = android.graphics.Color.parseColor("#88AABBCC")
+            drawContext.canvas.nativeCanvas.drawText("Spending", cx, cy - with(density) { 10.sp.toPx() }, paint)
+
+            paint.textSize = with(density) { 17.sp.toPx() }
+            paint.color = android.graphics.Color.WHITE
+            paint.isFakeBoldText = true
+            drawContext.canvas.nativeCanvas.drawText(formatCurrency(total.toDouble()), cx, cy + with(density) { 10.sp.toPx() }, paint)
+        }
+
+        // Legend
+        top.forEachIndexed { i, item ->
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth(fraction.toFloat())
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.primary)
-            )
+                    .fillMaxWidth()
+                    .clickable { onSliceTap(item.categoryName) }
+                    .padding(horizontal = 4.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(chartColors[i % chartColors.size], shape = MaterialTheme.shapes.small)
+                )
+                Text(
+                    item.categoryName,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    formatCurrency(item.amount.toDouble()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "${(fractions[i] * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.widthIn(min = 32.dp),
+                )
+            }
         }
     }
 }
 
+// ── Monthly grouped bar chart ───────────────────────────────────────────────
+
 @Composable
-fun FlowRow(flow: MonthlyFlow) {
-    ListItem(
-        headlineContent = { Text(flow.monthLabel) },
-        trailingContent = {
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    "Income: ${formatCurrency(flow.income.toDouble())}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF10B981)
+fun MonthlyBarChart(
+    flows: List<MonthlyFlow>,
+    modifier: Modifier = Modifier
+) {
+    val incomeColor = Color(0xFF4ECDC4)
+    val spendingColor = Color(0xFFFF6B6B)
+    val density = LocalDensity.current
+
+    val maxVal = flows.maxOf { maxOf(it.income.toDouble(), it.spending.toDouble()) }
+        .takeIf { it > 0.0 } ?: 1.0
+
+    Column(modifier = modifier) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) {
+            val w = size.width
+            val h = size.height
+            val barAreaH = h - with(density) { 20.dp.toPx() }
+            val count = flows.size
+            val groupW = w / count
+            val barW = groupW * 0.28f
+            val gap = groupW * 0.04f
+
+            flows.forEachIndexed { i, flow ->
+                val groupX = i * groupW
+                val incomeH = (flow.income.toDouble() / maxVal * barAreaH).toFloat()
+                val spendH  = (flow.spending.toDouble() / maxVal * barAreaH).toFloat()
+
+                // Income bar
+                val incomeLeft = groupX + (groupW / 2f) - barW - gap / 2f
+                drawRect(
+                    color = incomeColor,
+                    topLeft = Offset(incomeLeft, barAreaH - incomeH),
+                    size = Size(barW, incomeH)
                 )
-                Text(
-                    "Spending: ${formatCurrency(flow.spending.toDouble())}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFEF4444)
+
+                // Spending bar
+                val spendLeft = groupX + (groupW / 2f) + gap / 2f
+                drawRect(
+                    color = spendingColor,
+                    topLeft = Offset(spendLeft, barAreaH - spendH),
+                    size = Size(barW, spendH)
+                )
+
+                // Month label
+                val paint = android.graphics.Paint().apply {
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                    textSize = with(density) { 10.sp.toPx() }
+                    color = android.graphics.Color.parseColor("#88AABBCC")
+                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    flow.monthLabel.take(3),
+                    groupX + groupW / 2f,
+                    h,
+                    paint
                 )
             }
         }
-    )
+
+        // Legend
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(10.dp).background(incomeColor, MaterialTheme.shapes.small))
+            Spacer(Modifier.width(4.dp))
+            Text("Income", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp))
+            Box(modifier = Modifier.size(10.dp).background(spendingColor, MaterialTheme.shapes.small))
+            Spacer(Modifier.width(4.dp))
+            Text("Spending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable

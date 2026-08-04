@@ -7,8 +7,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -48,7 +50,8 @@ data class CategoryTileData(
     val budget: BigDecimal,
     val index: Int,
     val customColor: Color? = null,
-    val goalPace: GoalPace? = null
+    val goalPace: GoalPace? = null,
+    val projectedSpend: BigDecimal? = null
 )
 
 @Composable
@@ -251,67 +254,90 @@ fun SummitGradientBar(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SummitCategoryTileCard(
+fun SummitCategoryTileCard(
     tile: CategoryTileData,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null
 ) {
     val accent = tile.customColor ?: SummitColors.accent(tile.index)
     val fraction = if (tile.budget > BigDecimal.ZERO)
         (tile.spent.toDouble() / tile.budget.toDouble()).coerceIn(0.0, 1.0)
     else 0.0
+    val available = tile.budget - tile.spent
 
-    Surface(
-        modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = SummitColors.Slate2,
-        tonalElevation = 0.dp
-    ) {
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Text(summitCategoryEmoji(tile.name), style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp))
-                Text(
-                    text = tile.name.uppercase(),
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = formatCurrency(tile.spent.toDouble()),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
-                        fontFeatureSettings = "tnum"
+    // This card's background is a fixed dark navy regardless of the app's
+    // light/dark theme (matching the iOS mockup), so its text must be
+    // pinned to light-on-dark colors rather than the ambient onSurface,
+    // which flips to near-black in light mode and disappears here.
+    CompositionLocalProvider(LocalContentColor provides SummitColors.Ice) {
+        Surface(
+            modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            shape = RoundedCornerShape(20.dp),
+            color = SummitColors.Slate2,
+            tonalElevation = 0.dp
+        ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(summitCategoryEmoji(tile.name), style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 4.dp))
+                    Text(
+                        text = tile.name.uppercase(),
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp),
+                        color = SummitColors.Ice.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                )
-                Text(
-                    text = "of ${formatCurrency(tile.budget.toDouble())}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-                Spacer(Modifier.height(4.dp))
-                SummitGradientBar(fraction = fraction, height = 3, tint = accent)
-                if (tile.goalPace != null) {
-                    Spacer(Modifier.height(5.dp))
-                    TrueSummitPacePill(pace = tile.goalPace)
+                    Text(
+                        text = formatCurrency(tile.spent.toDouble()),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            fontFeatureSettings = "tnum"
+                        ),
+                        color = SummitColors.Ice
+                    )
+                    Text(
+                        text = "of ${formatCurrency(tile.budget.toDouble())}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SummitColors.Ice.copy(alpha = 0.4f)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    SummitGradientBar(fraction = fraction, height = 3, tint = accent)
+                    Text(
+                        text = if (available < BigDecimal.ZERO)
+                            "${formatCurrency(-available.toDouble())} over"
+                        else "${formatCurrency(available.toDouble())} left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (available < BigDecimal.ZERO)
+                            SummitColors.Rose
+                        else SummitColors.Ice.copy(alpha = 0.4f),
+                        modifier = Modifier.padding(top = 5.dp)
+                    )
+                    if (tile.goalPace != null) {
+                        Spacer(Modifier.height(5.dp))
+                        TrueSummitPacePill(pace = tile.goalPace)
+                    } else if (tile.projectedSpend != null && tile.budget > BigDecimal.ZERO) {
+                        Spacer(Modifier.height(5.dp))
+                        SpendingPacePill(projected = tile.projectedSpend, budget = tile.budget)
+                    }
                 }
+                // Accent bottom bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(accent, RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .align(Alignment.BottomStart)
+                )
             }
-            // Accent bottom bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(accent, RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                    .align(Alignment.BottomStart)
-            )
         }
     }
 }
