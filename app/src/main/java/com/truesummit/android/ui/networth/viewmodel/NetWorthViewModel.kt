@@ -29,13 +29,17 @@ enum class NetWorthTimeRange(val label: String, val days: Int?) {
 
 data class NetWorthUiState(
     val netWorth: BigDecimal = BigDecimal.ZERO,
+    val totalAssets: BigDecimal = BigDecimal.ZERO,
+    val totalLiabilities: BigDecimal = BigDecimal.ZERO,
     val assets: List<AccountEntity> = emptyList(),
     val liabilities: List<AccountEntity> = emptyList(),
     val holdings: List<InvestmentHoldingEntity> = emptyList(),
     val timeRange: NetWorthTimeRange = NetWorthTimeRange.MONTH_3,
     val chartPoints: List<BigDecimal> = emptyList(),
     val currentTier: SubscriptionTier = SubscriptionTier.NONE,
-    val milestone: NetWorthMilestone? = null
+    val milestone: NetWorthMilestone? = null,
+    val delta: BigDecimal? = null,
+    val deltaPercent: Double? = null
 )
 
 class NetWorthViewModel(application: Application) : AndroidViewModel(application) {
@@ -93,15 +97,26 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             NetWorthProjectorService.project(netWorth, monthlyChange)
         else null
 
+        // Delta vs the start of the selected range, mirroring iOS's "vs Xd ago" chip.
+        val delta = chartPoints.firstOrNull()?.let { past -> netWorth.subtract(past) }
+        val deltaPercent = delta?.let { d ->
+            val pastValue = chartPoints.first().abs()
+            if (pastValue > BigDecimal("0.01")) d.toDouble() / pastValue.toDouble() * 100.0 else null
+        }
+
         NetWorthUiState(
             netWorth = netWorth,
+            totalAssets = totalAssets,
+            totalLiabilities = totalLiabs,
             assets = assets,
             liabilities = liabilities,
             holdings = holdings,
             timeRange = range,
             chartPoints = chartPoints,
             currentTier = tier,
-            milestone = milestone
+            milestone = milestone,
+            delta = delta,
+            deltaPercent = deltaPercent
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NetWorthUiState())
 
