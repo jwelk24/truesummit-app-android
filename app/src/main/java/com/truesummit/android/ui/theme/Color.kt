@@ -13,5 +13,12 @@ val DarkSummitPrimary = Color(0xFF818CF8) // Lighter Indigo for Dark Mode
 val DarkSummitSecondary = Color(0xFF34D399) // Lighter Emerald
 val DarkSummitTertiary = Color(0xFFA78BFA) // Lighter Purple
 
-val DarkSummitBackground = Color(0xFF111827) // Dark Slate
-val DarkSummitSurface = Color(0xFF1F2937) // Slate Gray
+// Root dark palette, matching iOS's SummitTheme.slate/slate2 — the whole
+// app renders as nested dark cards (Slate2) on a darker canvas (Slate),
+// same hierarchy as the Budget/Transactions/Net Worth hero cards.
+val DarkSummitBackground = SummitColors.Slate
+val DarkSummitSurface = SummitColors.Slate2
+val DarkSummitSurfaceVariant = Color(0xFF2E3752)
+val DarkSummitOnSurfaceVariant = Color(0xFFA9B4C9)
+val DarkSummitOutline = Color(0xFF48557A)
+val DarkSummitOutlineVariant = Color(0xFF313C58)

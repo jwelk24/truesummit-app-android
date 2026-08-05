@@ -2,12 +2,12 @@ package com.truesummit.android.ui.theme
 
 import android.app.Activity
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -18,7 +18,15 @@ private val DarkColorScheme = darkColorScheme(
     secondary = DarkSummitSecondary,
     tertiary = DarkSummitTertiary,
     background = DarkSummitBackground,
-    surface = DarkSummitSurface
+    onBackground = SummitColors.Ice,
+    surface = DarkSummitSurface,
+    onSurface = SummitColors.Ice,
+    surfaceVariant = DarkSummitSurfaceVariant,
+    onSurfaceVariant = DarkSummitOnSurfaceVariant,
+    outline = DarkSummitOutline,
+    outlineVariant = DarkSummitOutlineVariant,
+    error = SummitColors.Rose,
+    onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -31,7 +39,10 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun TrueSummitTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Summit's signature look is the dark slate palette; matching iOS,
+    // system light mode is intentionally not supported (Customize can
+    // still recolor the accent).
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
