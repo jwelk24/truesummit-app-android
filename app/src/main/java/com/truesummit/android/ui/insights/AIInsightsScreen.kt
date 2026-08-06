@@ -3,6 +3,8 @@ package com.truesummit.android.ui.insights
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -11,11 +13,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.truesummit.android.billing.PremiumManager
+import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.service.ChallengeStore
 import com.truesummit.android.ui.transactions.EmptyStateView
 
@@ -43,11 +50,14 @@ fun AIInsightsScreen(
     Scaffold(
         topBar = { TopAppBar(title = { Text("Insights") }) }
     ) { padding ->
-        if (currentTier != com.truesummit.android.billing.SubscriptionTier.PREMIUM) {
+        if (currentTier != SubscriptionTier.PREMIUM) {
             LazyColumn(
                 modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    InsightsHeroCard(digestHeadline = null, isPremium = false)
+                }
                 item {
                     AskYourMoneyCard(
                         result = queryResult,
@@ -89,6 +99,9 @@ fun AIInsightsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
+                    InsightsHeroCard(digestHeadline = digest?.headline, isPremium = true)
+                }
+                item {
                     AskYourMoneyCard(
                         result = queryResult,
                         isLoading = isQuerying,
@@ -123,6 +136,100 @@ fun AIInsightsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun InsightsHeroCard(digestHeadline: String?, isPremium: Boolean) {
+    val statusText = if (isPremium) "Active" else "Premium"
+    val statusColor = if (isPremium) Color(0xFF10B981) else Color(0xFFF59E0B)
+    val statusIcon = if (isPremium) Icons.Default.CheckCircle else Icons.Default.Lock
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "ON-DEVICE AI",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        letterSpacing = 0.6.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.weight(1f))
+                Surface(shape = CircleShape, color = statusColor.copy(alpha = 0.15f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(11.dp))
+                        Text(
+                            statusText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = statusColor
+                        )
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    if (digestHeadline == null) "On-Device Insights" else "Latest Digest",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    digestHeadline ?: "Private summaries that never leave your device.",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                InsightsTrait(Icons.Default.Lock, "On-device", Modifier.weight(1f))
+                InsightsTrait(Icons.Default.Shield, "Private", Modifier.weight(1f))
+                InsightsTrait(Icons.Default.AllInclusive, "Free", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightsTrait(icon: ImageVector, label: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(12.dp)
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -214,9 +321,16 @@ fun WeeklyDigestCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Weekly Digest", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text("Weekly Digest", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             if (isLoading) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -268,7 +382,14 @@ fun SmartCategorizeCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Smart Categorize", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.AutoFixHigh, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text("Smart Categorize", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
             Spacer(modifier = Modifier.height(8.dp))
             if (result != null) {
                 Text(result, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)

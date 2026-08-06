@@ -25,6 +25,8 @@ import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.data.entity.AccountEntity
@@ -262,18 +264,25 @@ fun NetWorthChart(points: List<BigDecimal>) {
             .fillMaxWidth()
             .height(250.dp)
             .padding(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Box(modifier = Modifier.padding(16.dp)) {
-            Chart(
-                chart = lineChart(),
-                model = chartEntryModel,
-                startAxis = rememberStartAxis(
-                    valueFormatter = { value, _ -> formatCurrency(value.toDouble()) }
-                ),
-                bottomAxis = rememberBottomAxis(),
-                modifier = Modifier.fillMaxSize()
-            )
+        // Vico's default axis label/guideline colors are dark and don't follow
+        // the Compose theme, so they vanish against the dark card. m3ChartStyle
+        // derives them from MaterialTheme (labels from onBackground, guidelines
+        // and axis lines from outline).
+        ProvideChartStyle(m3ChartStyle()) {
+            Box(modifier = Modifier.padding(16.dp)) {
+                Chart(
+                    chart = lineChart(),
+                    model = chartEntryModel,
+                    startAxis = rememberStartAxis(
+                        valueFormatter = { value, _ -> formatCurrency(value.toDouble()) }
+                    ),
+                    bottomAxis = rememberBottomAxis(),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }

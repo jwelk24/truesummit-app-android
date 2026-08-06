@@ -19,6 +19,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.Room
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.core.entry.entryModelOf
@@ -144,13 +146,18 @@ private fun ProjectionCard(proj: WhatIfProjection, currentNetWorth: BigDecimal) 
             val vals = proj.monthlyValues()
             if (vals.isNotEmpty()) {
                 val model = entryModelOf(*vals.map { it.toFloat() }.toTypedArray())
-                Chart(
-                    chart = lineChart(),
-                    model = model,
-                    startAxis = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(),
-                    modifier = Modifier.fillMaxWidth().height(160.dp)
-                )
+                // Vico's default axis colors don't follow the Compose theme and
+                // vanish against the dark card; m3ChartStyle derives them from
+                // MaterialTheme.
+                ProvideChartStyle(m3ChartStyle()) {
+                    Chart(
+                        chart = lineChart(),
+                        model = model,
+                        startAxis = rememberStartAxis(),
+                        bottomAxis = rememberBottomAxis(),
+                        modifier = Modifier.fillMaxWidth().height(160.dp)
+                    )
+                }
             }
             val finalVal = proj.monthlyValues().lastOrNull() ?: currentNetWorth
             Text("Projected: ${formatCurrency(finalVal.toDouble())}",

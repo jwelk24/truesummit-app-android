@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.core.entry.entryModelOf
@@ -94,16 +96,20 @@ fun ForecastChart(points: List<ForecastPoint>) {
             .padding(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Box(modifier = Modifier.padding(16.dp)) {
-            Chart(
-                chart = lineChart(),
-                model = chartEntryModel,
-                startAxis = rememberStartAxis(
-                    valueFormatter = { value, _ -> formatCurrency(value.toDouble()) }
-                ),
-                bottomAxis = rememberBottomAxis(),
-                modifier = Modifier.fillMaxSize()
-            )
+        // Vico's default axis colors don't follow the Compose theme and vanish
+        // against the dark card; m3ChartStyle derives them from MaterialTheme.
+        ProvideChartStyle(m3ChartStyle()) {
+            Box(modifier = Modifier.padding(16.dp)) {
+                Chart(
+                    chart = lineChart(),
+                    model = chartEntryModel,
+                    startAxis = rememberStartAxis(
+                        valueFormatter = { value, _ -> formatCurrency(value.toDouble()) }
+                    ),
+                    bottomAxis = rememberBottomAxis(),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
