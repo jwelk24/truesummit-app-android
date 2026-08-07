@@ -13,8 +13,13 @@ object TabOrderManager {
     private const val PREFS_NAME = "truesummit_theme_prefs"
     private const val KEY_TAB_ORDER = "tab_order"
 
-    /** Bottom-bar slots reserved for real tabs; the last slot is always More. */
-    const val PRIMARY_TAB_COUNT = 5
+    /**
+     * Bottom-bar slots reserved for real tabs; the last slot is always More,
+     * so the bar shows this many + 1. Four keeps every label on one line —
+     * at five, "Transactions" wraps and its icon drifts up out of alignment
+     * with the single-line tabs.
+     */
+    const val PRIMARY_TAB_COUNT = 4
 
     private val _order = MutableStateFlow(reorderableTabs)
     val order: StateFlow<List<Screen>> = _order

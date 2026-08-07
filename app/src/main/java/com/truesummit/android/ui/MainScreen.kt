@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -68,6 +69,7 @@ import com.truesummit.android.ui.tour.tourStops
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +116,20 @@ fun MainScreen() {
                         (primaryTabs + Screen.More).forEach { screen ->
                             NavigationBarItem(
                                 icon = { Icon(screen.icon, contentDescription = null) },
-                                label = { Text(screen.title) },
+                                label = {
+                                    // One line only: NavigationBarItem centers
+                                    // icon+label together, so a wrapped label
+                                    // shifts its icon up out of line with the
+                                    // other tabs. 11sp is what keeps the
+                                    // longest label ("Transactions") inside its
+                                    // slot without ellipsizing.
+                                    Text(
+                                        screen.title,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
                                 selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                                 onClick = {
                                     navController.navigate(screen.route) {
