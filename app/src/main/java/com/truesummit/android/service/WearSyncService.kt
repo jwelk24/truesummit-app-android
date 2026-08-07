@@ -31,20 +31,20 @@ class WearSyncService(private val context: Context, private val db: AppDatabase)
             .filter { it.balance < BigDecimal.ZERO }
             .fold(BigDecimal.ZERO) { a, acc -> a + acc.balance.abs() }
 
-        val monthStart = Calendar.getInstance().apply {
-            set(year, month - 1, 1, 0, 0, 0); set(Calendar.MILLISECOND, 0)
-        }.time
-        val monthEnd = Date()
-
-        val monthTx = transactions.filter { it.date in monthStart..monthEnd }
         val budgetMonth = db.budgetDao().getMonth(year, month)
         val budgetAssigned = budgetMonth?.let {
             db.budgetDao().getAllocationsForMonth(it.id).first()
                 .fold(BigDecimal.ZERO) { a, alloc -> a + alloc.amount }
         } ?: BigDecimal.ZERO
-        val budgetSpent = monthTx
-            .filter { it.amount < BigDecimal.ZERO }
-            .fold(BigDecimal.ZERO) { a, tx -> a + tx.amount.abs() }
+
+        // Spent must match the phone's Budget screen exactly, so it goes
+        // through the same engine: per-category activity (which nets refunds
+        // and counts splits), not a raw sum of negative transactions.
+        val categories = db.categoryDao().getCategories().first()
+        val engine = BudgetEngine(context)
+        val budgetSpent = categories
+            .fold(BigDecimal.ZERO) { acc, cat -> acc + engine.activity(cat, year, month) }
+            .abs()
 
         val safeToSpend = SafeToSpendService.compute(accounts, scheduled, transactions, BigDecimal("500"), Date())
 

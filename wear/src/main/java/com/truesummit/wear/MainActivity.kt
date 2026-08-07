@@ -11,9 +11,14 @@ import com.truesummit.wear.ui.theme.TrueSummitWearTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Hydrate from disk so a cold start shows the last known numbers
+        // instead of the "open your phone" placeholder.
+        SnapshotRepository.load(this)
+
         setContent {
             TrueSummitWearTheme {
-                val snapshot by WatchSnapshotStore.snapshot.collectAsState()
+                val snapshot by SnapshotRepository.snapshot.collectAsState()
                 TrueSummitWearApp(snapshot = snapshot)
             }
         }

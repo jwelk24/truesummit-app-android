@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Mountain mark on the slate background, matching the app icon -->
+    <path
+        android:fillColor="#1C2333"
+        android:pathData="M0,0h48v48h-48z" />
+    <path
+        android:fillColor="#4ECDC4"
+        android:pathData="M24,12L36,34H12z" />
+    <path
+        android:fillColor="#EEF4FF"
+        android:pathData="M24,12L29,21L26.5,19.5L24,21.5L21.5,19.5L19,21z" />
+</vector>
