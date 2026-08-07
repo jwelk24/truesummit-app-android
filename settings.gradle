@@ -3,3 +3,4 @@ plugins {
 }
 rootProject.name = "Summit Android"
 include ':app'
+include ':wear'

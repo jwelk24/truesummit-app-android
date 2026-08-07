@@ -52,6 +52,10 @@ android {
 }
 
 dependencies {
+    // Wear OS data layer (phone side)
+    implementation 'com.google.android.gms:play-services-wearable:18.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3'
+
     // Core & Lifecycle
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
