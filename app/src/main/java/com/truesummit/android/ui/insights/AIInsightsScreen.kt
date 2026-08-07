@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,6 +37,7 @@ fun AIInsightsScreen(
     onCoach: () -> Unit = {},
     onSafeToSpend: () -> Unit = {},
     onFinancialHealth: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
     viewModel: AIInsightsViewModel = viewModel()
 ) {
     val digest by viewModel.digest.collectAsState()
@@ -48,7 +50,18 @@ fun AIInsightsScreen(
     val currentTier by PremiumManager.currentTier.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Insights") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Insights") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
+            )
+        }
     ) { padding ->
         if (currentTier != SubscriptionTier.PREMIUM) {
             LazyColumn(

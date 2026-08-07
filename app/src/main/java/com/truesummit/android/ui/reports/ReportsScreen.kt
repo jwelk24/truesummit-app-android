@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,7 +45,10 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReportsScreen(viewModel: ReportsViewModel = viewModel()) {
+fun ReportsScreen(
+    onBack: (() -> Unit)? = null,
+    viewModel: ReportsViewModel = viewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showExportSheet by remember { mutableStateOf(false) }
@@ -54,6 +58,13 @@ fun ReportsScreen(viewModel: ReportsViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("Reports") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { showExportSheet = true }) {
                         Icon(Icons.Default.Share, contentDescription = "Export")

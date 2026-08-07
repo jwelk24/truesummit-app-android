@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.truesummit.android.service.MerchantCleaner
+import com.truesummit.android.ui.navigation.TabOrderManager
 import com.truesummit.android.ui.theme.ThemeManager
 
 val presetColors = listOf(
@@ -96,7 +99,73 @@ fun CustomizeAppearanceScreen(onBack: () -> Unit) {
                 }
             }
 
+            item { TabOrderSection() }
+
             item { Spacer(modifier = Modifier.height(40.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun TabOrderSection() {
+    val order by TabOrderManager.order.collectAsState()
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Tab Order", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = { TabOrderManager.reset() }) { Text("Reset") }
+        }
+        Text(
+            "The first ${TabOrderManager.PRIMARY_TAB_COUNT} get their own tab; the rest live in More.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        order.forEachIndexed { index, screen ->
+            val isPrimary = index < TabOrderManager.PRIMARY_TAB_COUNT
+            ListItem(
+                headlineContent = { Text(screen.title) },
+                supportingContent = {
+                    Text(
+                        if (isPrimary) "Tab ${index + 1}" else "In More",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isPrimary) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        screen.icon,
+                        contentDescription = null,
+                        tint = if (isPrimary) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Row {
+                        IconButton(
+                            onClick = { TabOrderManager.moveUp(index) },
+                            enabled = index > 0
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move ${screen.title} up")
+                        }
+                        IconButton(
+                            onClick = { TabOrderManager.moveDown(index) },
+                            enabled = index < order.lastIndex
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move ${screen.title} down")
+                        }
+                    }
+                }
+            )
+            // Divider marks where the bar stops and More begins.
+            if (index == TabOrderManager.PRIMARY_TAB_COUNT - 1) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+            }
         }
     }
 }

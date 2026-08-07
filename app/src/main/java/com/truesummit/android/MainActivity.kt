@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
+import com.truesummit.android.ui.navigation.TabOrderManager
 import com.truesummit.android.ui.theme.ThemeManager
 import com.truesummit.android.service.EngagementNudgesService
 import com.truesummit.android.ui.onboarding.OnboardingState
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ThemeManager.init(this)
+        TabOrderManager.init(this)
         OnboardingState.init(this)
         EngagementNudgesService.init(this)
         requestNotificationPermission()

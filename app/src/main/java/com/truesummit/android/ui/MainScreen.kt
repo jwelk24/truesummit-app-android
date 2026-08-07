@@ -22,8 +22,10 @@ import com.truesummit.android.ui.budget.BudgetScreen
 import com.truesummit.android.ui.horizon.CashFlowForecastScreen
 import com.truesummit.android.ui.horizon.HorizonScreen
 import com.truesummit.android.ui.insights.AIInsightsScreen
+import com.truesummit.android.ui.more.MoreScreen
 import com.truesummit.android.ui.navigation.Screen
-import com.truesummit.android.ui.navigation.bottomNavItems
+import com.truesummit.android.ui.navigation.TabOrderManager
+import com.truesummit.android.ui.navigation.bottomNavRoutes
 import com.truesummit.android.ui.networth.NetWorthScreen
 import com.truesummit.android.ui.networth.PlaidConnectionsScreen
 import com.truesummit.android.ui.reports.ReportsScreen
@@ -75,12 +77,17 @@ fun MainScreen() {
     val tourStop by FeatureTourState.currentStop.collectAsState()
     var showOnboarding by remember { mutableStateOf(!OnboardingState.hasCompletedWelcome) }
 
+    val tabOrder by TabOrderManager.order.collectAsState()
+    val primaryTabs = tabOrder.take(TabOrderManager.PRIMARY_TAB_COUNT)
+    val overflowTabs = tabOrder.drop(TabOrderManager.PRIMARY_TAB_COUNT)
+    val barRoutes = bottomNavRoutes(primaryTabs)
+
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            val isMainTab = bottomNavItems.any { it.route == currentRoute }
+            val isMainTab = currentRoute in barRoutes
             if (isMainTab) {
                 TopAppBar(
                     title = {},
@@ -104,7 +111,7 @@ fun MainScreen() {
                 Column {
                     SyncIndicator()
                     NavigationBar {
-                        bottomNavItems.forEach { screen ->
+                        (primaryTabs + Screen.More).forEach { screen ->
                             NavigationBarItem(
                                 icon = { Icon(screen.icon, contentDescription = null) },
                                 label = { Text(screen.title) },
@@ -184,7 +191,23 @@ fun MainScreen() {
             composable(Screen.Peaks.route) {
                 PeaksScreen(onNavigateToCategory = { /* TODO: open category detail */ })
             }
-            composable(Screen.Reports.route) { ReportsScreen() }
+            composable(Screen.Reports.route) {
+                ReportsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.More.route) {
+                MoreScreen(
+                    overflowTabs = overflowTabs,
+                    onTab = { screen -> navController.navigate(screen.route) },
+                    onCoach = { navController.navigate(Screen.Coach.route) },
+                    onSafeToSpend = { navController.navigate(Screen.SafeToSpend.route) },
+                    onFinancialHealth = { navController.navigate(Screen.FinancialHealth.route) },
+                    onWeeklyReview = { navController.navigate(Screen.WeeklyReview.route) },
+                    onWrapped = { navController.navigate(Screen.Wrapped.route) },
+                    onChallenges = { navController.navigate(Screen.Challenges.route) },
+                    onMonthRecap = { navController.navigate(Screen.MonthRecap.route) },
+                    onSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
             composable(Screen.Insights.route) {
                 AIInsightsScreen(
                     onUpgrade = { navController.navigate(Screen.Paywall.route) },
@@ -193,7 +216,8 @@ fun MainScreen() {
                     onChallenges = { navController.navigate(Screen.Challenges.route) },
                     onCoach = { navController.navigate(Screen.Coach.route) },
                     onSafeToSpend = { navController.navigate(Screen.SafeToSpend.route) },
-                    onFinancialHealth = { navController.navigate(Screen.FinancialHealth.route) }
+                    onFinancialHealth = { navController.navigate(Screen.FinancialHealth.route) },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.CategoryRules.route) {

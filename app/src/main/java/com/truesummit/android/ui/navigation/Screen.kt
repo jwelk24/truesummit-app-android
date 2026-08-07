@@ -42,13 +42,24 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object MonthRecap : Screen("month_recap", "Month Recap", Icons.Default.CalendarMonth)
     object PrivacyData : Screen("privacy_data", "Privacy & Data", Icons.Default.Lock)
     object Peaks : Screen("peaks", "Your Peaks", Icons.Default.Flag)
+    object More : Screen("more", "More", Icons.Default.MoreHoriz)
 }
 
-val bottomNavItems = listOf(
+/**
+ * Tabs the user can reorder, in default order. Mirrors iOS, which shows the
+ * first handful in the bar and puts the rest behind "More" — six bar slots is
+ * the ceiling here, since at seven the labels wrap.
+ */
+val reorderableTabs = listOf(
     Screen.Budget,
     Screen.Transactions,
     Screen.NetWorth,
     Screen.Horizon,
     Screen.Peaks,
-    Screen.Reports
+    Screen.Reports,
+    Screen.Insights
 )
+
+/** Routes that own a bottom-bar slot, used to decide when to show the shared top bar. */
+fun bottomNavRoutes(primaryTabs: List<Screen>): Set<String> =
+    primaryTabs.map { it.route }.toSet() + Screen.More.route
