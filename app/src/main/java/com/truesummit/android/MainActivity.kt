@@ -24,12 +24,7 @@ import androidx.core.content.ContextCompat
 import com.truesummit.android.ui.navigation.TabOrderManager
 import com.truesummit.android.ui.theme.ThemeManager
 import com.truesummit.android.service.EngagementNudgesService
-import com.truesummit.android.service.WearSyncService
 import com.truesummit.android.ui.onboarding.OnboardingState
-import androidx.lifecycle.lifecycleScope
-import androidx.room.Room
-import com.truesummit.android.data.AppDatabase
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,16 +36,6 @@ class MainActivity : ComponentActivity() {
         EngagementNudgesService.init(this)
         requestNotificationPermission()
         SpendingTodayManager.startOrUpdate(this)
-
-        // Push a fresh snapshot to paired Wear OS watches
-        lifecycleScope.launch {
-            runCatching {
-                val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "truesummit-db")
-                    .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
-                    .build()
-                WearSyncService(applicationContext, db).pushSnapshot()
-            }
-        }
 
         setContent {
             TrueSummitTheme {

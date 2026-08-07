@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.model.AccountType
+import com.truesummit.android.service.BudgetEngine
 import kotlinx.coroutines.flow.first
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -68,12 +69,15 @@ data class TrueSummitSnapshot(
             }
 
             val assignedTotal = allocations.fold(BigDecimal.ZERO) { acc, alloc -> acc.add(alloc.amount) }
-            val spentTotal = txs.filter { tx ->
-                val cal = Calendar.getInstance().apply { time = tx.date }
-                tx.amount < BigDecimal.ZERO &&
-                cal.get(Calendar.YEAR) == year &&
-                (cal.get(Calendar.MONTH) + 1) == month
-            }.fold(BigDecimal.ZERO) { acc, tx -> acc.add(tx.amount.abs()) }
+
+            // Spent goes through the same engine the Budget screen uses, so every
+            // surface reports the same number. Summing raw negative transactions
+            // counts uncategorized spending, drops refunds, and ignores splits.
+            val categories = db.categoryDao().getCategories().first()
+            val engine = BudgetEngine(context)
+            val spentTotal = categories
+                .fold(BigDecimal.ZERO) { acc, cat -> acc.add(engine.activity(cat, year, month)) }
+                .abs()
 
             val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(now)
 

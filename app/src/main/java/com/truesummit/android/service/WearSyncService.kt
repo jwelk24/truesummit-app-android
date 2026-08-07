@@ -1,89 +1,77 @@
 package com.truesummit.android.service
 
 import android.content.Context
+import androidx.room.Room
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.truesummit.android.data.AppDatabase
-import com.truesummit.android.data.model.AccountType
+import com.truesummit.android.widget.TrueSummitSnapshot
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONObject
 import java.math.BigDecimal
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
 
-class WearSyncService(private val context: Context, private val db: AppDatabase) {
+/**
+ * Serializes the shared [TrueSummitSnapshot] to the paired Wear OS device.
+ *
+ * The snapshot itself is built by the same code the home-screen widgets use,
+ * so the watch, the widgets, and the in-app Budget screen all report the same
+ * numbers.
+ */
+class WearSyncService(private val context: Context) {
 
     suspend fun pushSnapshot() {
-        val accounts = db.accountDao().getAll().first()
-        val scheduled = db.scheduledItemDao().getAll().first()
-        val transactions = db.transactionDao().getAll().first()
+        val snapshot = TrueSummitSnapshot.build(context)
 
-        val cal = Calendar.getInstance()
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH) + 1
-
-        val totalAssets = accounts
-            .filter { it.balance > BigDecimal.ZERO }
-            .fold(BigDecimal.ZERO) { a, acc -> a + acc.balance }
-        val totalLiabilities = accounts
-            .filter { it.balance < BigDecimal.ZERO }
-            .fold(BigDecimal.ZERO) { a, acc -> a + acc.balance.abs() }
-
-        val budgetMonth = db.budgetDao().getMonth(year, month)
-        val budgetAssigned = budgetMonth?.let {
-            db.budgetDao().getAllocationsForMonth(it.id).first()
-                .fold(BigDecimal.ZERO) { a, alloc -> a + alloc.amount }
-        } ?: BigDecimal.ZERO
-
-        // Spent must match the phone's Budget screen exactly, so it goes
-        // through the same engine: per-category activity (which nets refunds
-        // and counts splits), not a raw sum of negative transactions.
-        val categories = db.categoryDao().getCategories().first()
-        val engine = BudgetEngine(context)
-        val budgetSpent = categories
-            .fold(BigDecimal.ZERO) { acc, cat -> acc + engine.activity(cat, year, month) }
-            .abs()
-
-        val safeToSpend = SafeToSpendService.compute(accounts, scheduled, transactions, BigDecimal("500"), Date())
-
-        // Upcoming bills in next 14 days
         val today = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.time
-        val horizon = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 14) }.time
 
         val billsJson = JSONArray()
-        scheduled
-            .filter { it.nextDate >= today && it.nextDate <= horizon }
-            .sortedBy { it.nextDate }
-            .take(3)
-            .forEach { item ->
-                val daysUntil = ((item.nextDate.time - today.time) / (1000L * 60 * 60 * 24)).toInt()
-                billsJson.put(JSONObject().apply {
-                    put("id", item.id.toString())
-                    put("name", item.name)
-                    put("amount", item.amount.toDouble())
-                    put("daysUntil", daysUntil)
-                })
-            }
+        snapshot.upcomingBills.take(3).forEach { bill ->
+            val daysUntil = ((bill.date.time - today.time) / (1000L * 60 * 60 * 24)).toInt()
+            billsJson.put(JSONObject().apply {
+                put("id", bill.id.toString())
+                put("name", bill.name)
+                put("amount", bill.amount.toDouble())
+                put("daysUntil", daysUntil.coerceAtLeast(0))
+            })
+        }
 
-        val monthLabel = SimpleDateFormat("MMMM", Locale.getDefault()).format(Date())
+        val db = Room.databaseBuilder(
+            context.applicationContext, AppDatabase::class.java, "truesummit-db"
+        ).addMigrations(
+            AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4
+        ).build()
 
-        val snapshot = JSONObject().apply {
-            put("lastUpdated", System.currentTimeMillis())
-            put("currencyCode", "USD")
-            put("totalAssets", totalAssets.toDouble())
-            put("totalLiabilities", totalLiabilities.toDouble())
-            put("monthLabel", monthLabel)
-            put("budgetAssigned", budgetAssigned.toDouble())
-            put("budgetSpent", budgetSpent.toDouble())
+        val accounts = db.accountDao().getAll().first()
+        val transactions = db.transactionDao().getAll().first()
+        val scheduled = db.scheduledItemDao().getAll().first()
+        val safe = SafeToSpendService.compute(
+            accounts, scheduled, transactions, BigDecimal("500"), Date()
+        )
+        val health = FinancialHealthService.compute(transactions, accounts, Date(), context)
+
+        val payload = JSONObject().apply {
+            put("lastUpdated", snapshot.lastUpdated.time)
+            put("currencyCode", snapshot.currencyCode)
+            put("totalAssets", snapshot.totalAssets.toDouble())
+            put("totalLiabilities", snapshot.totalLiabilities.toDouble())
+            put("monthLabel", snapshot.monthLabel)
+            put("budgetAssigned", snapshot.budgetAssigned.toDouble())
+            put("budgetSpent", snapshot.budgetSpent.toDouble())
             put("upcomingBills", billsJson)
-            put("safeToSpendToday", safeToSpend.safeToday.toDouble())
-            put("safePerDay", safeToSpend.perDay.toDouble())
-            val health = FinancialHealthService.compute(transactions, accounts, Date(), context)
+            if (safe.hasSpendableAccount) {
+                put("safeToSpendToday", safe.safeToday.toDouble())
+                put("safePerDay", safe.perDay.toDouble())
+            } else {
+                put("safeToSpendToday", JSONObject.NULL)
+                put("safePerDay", JSONObject.NULL)
+            }
             if (health.hasData) {
                 put("healthScore", health.total)
                 put("healthGrade", health.grade)
@@ -94,7 +82,7 @@ class WearSyncService(private val context: Context, private val db: AppDatabase)
         }
 
         val request = PutDataMapRequest.create("/truesummit/snapshot").apply {
-            dataMap.putString("snapshot_json", snapshot.toString())
+            dataMap.putString("snapshot_json", payload.toString())
             dataMap.putLong("timestamp", System.currentTimeMillis())
         }.asPutDataRequest().setUrgent()
 
