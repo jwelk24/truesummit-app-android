@@ -46,7 +46,13 @@ fun AIInsightsScreen(
     val categorizeResult by viewModel.categorizeResult.collectAsState()
     val queryResult by viewModel.queryResult.collectAsState()
     val isQuerying by viewModel.isQuerying.collectAsState()
-    
+    val anomalies by viewModel.anomalies.collectAsState()
+    val isDetectingAnomalies by viewModel.isDetectingAnomalies.collectAsState()
+    val savingsSuggestions by viewModel.savingsSuggestions.collectAsState()
+    val isLoadingSuggestions by viewModel.isLoadingSuggestions.collectAsState()
+    val chatHistory by viewModel.chatHistory.collectAsState()
+    val isCoachTyping by viewModel.isCoachTyping.collectAsState()
+
     val currentTier by PremiumManager.currentTier.collectAsState()
 
     Scaffold(
@@ -145,6 +151,30 @@ fun AIInsightsScreen(
                         isLoading = isCategorizing,
                         result = categorizeResult,
                         onRun = { viewModel.runSmartCategorize() }
+                    )
+                }
+
+                item {
+                    AnomalyCard(
+                        anomalies = anomalies,
+                        isLoading = isDetectingAnomalies,
+                        onRun = { viewModel.detectAnomalies() }
+                    )
+                }
+
+                item {
+                    SavingsSuggestionsCard(
+                        suggestions = savingsSuggestions,
+                        isLoading = isLoadingSuggestions,
+                        onLoad = { viewModel.loadSavingsSuggestions() }
+                    )
+                }
+
+                item {
+                    CoachChatCard(
+                        chatHistory = chatHistory,
+                        isTyping = isCoachTyping,
+                        onSend = { viewModel.sendCoachMessage(it) }
                     )
                 }
             }
@@ -544,5 +574,190 @@ private fun CheckInRow(
         }
         Icon(Icons.Default.ChevronRight, contentDescription = null,
             modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// ── Anomaly detection card ────────────────────────────────────────────────────
+
+@Composable
+fun AnomalyCard(
+    anomalies: List<com.truesummit.android.service.AnomalyResult>,
+    isLoading: Boolean,
+    onRun: () -> Unit
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Warning, contentDescription = null,
+                    tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                Text("Anomaly Detection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Text("Gemini scans your recent transactions for unusual charges or price changes.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (anomalies.isEmpty() && !isLoading) {
+                Button(onClick = onRun, modifier = Modifier.fillMaxWidth()) {
+                    Text("Scan for Anomalies")
+                }
+            } else if (isLoading) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Text("Scanning transactions…", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                anomalies.forEach { anomaly ->
+                    val severityColor = when (anomaly.severity) {
+                        "high" -> Color(0xFFEF4444)
+                        "medium" -> Color(0xFFF59E0B)
+                        else -> Color(0xFF6B7280)
+                    }
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Surface(shape = CircleShape, color = severityColor.copy(alpha = 0.15f)) {
+                                Icon(Icons.Default.ErrorOutline, contentDescription = null,
+                                    tint = severityColor, modifier = Modifier.padding(6.dp).size(14.dp))
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("${anomaly.merchant} · \$" + "%.2f".format(anomaly.amount),
+                                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text(anomaly.reason, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                TextButton(onClick = onRun, modifier = Modifier.align(Alignment.End)) { Text("Rescan") }
+            }
+        }
+    }
+}
+
+// ── Savings suggestions card ──────────────────────────────────────────────────
+
+@Composable
+fun SavingsSuggestionsCard(
+    suggestions: List<com.truesummit.android.service.SavingsSuggestion>,
+    isLoading: Boolean,
+    onLoad: () -> Unit
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Lightbulb, contentDescription = null,
+                    tint = Color(0xFF4ECDC4), modifier = Modifier.size(20.dp))
+                Text("Savings Suggestions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Text("Gemini finds realistic ways to save based on your actual spending habits.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (suggestions.isEmpty() && !isLoading) {
+                Button(onClick = onLoad, modifier = Modifier.fillMaxWidth()) {
+                    Text("Get Suggestions")
+                }
+            } else if (isLoading) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Text("Analyzing your spending…", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                suggestions.forEach { s ->
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Text(s.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f))
+                                Text("+\$" + "%.0f".format(s.estimatedMonthlySavings) + "/mo",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
+                            }
+                            Text(s.detail, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                TextButton(onClick = onLoad, modifier = Modifier.align(Alignment.End)) { Text("Refresh") }
+            }
+        }
+    }
+}
+
+// ── Budget coach chat card ────────────────────────────────────────────────────
+
+@Composable
+fun CoachChatCard(
+    chatHistory: List<com.truesummit.android.ui.insights.ChatMessage>,
+    isTyping: Boolean,
+    onSend: (String) -> Unit
+) {
+    var input by remember { mutableStateOf("") }
+
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Psychology, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text("Budget Coach", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Text("Ask Gemini anything about your finances — personalized advice based on your real data.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // Chat bubbles
+            if (chatHistory.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    chatHistory.takeLast(6).forEach { msg ->
+                        val bubbleColor = if (msg.isUser)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                        val align = if (msg.isUser) Alignment.End else Alignment.Start
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Surface(
+                                shape = RoundedCornerShape(
+                                    topStart = 12.dp, topEnd = 12.dp,
+                                    bottomStart = if (msg.isUser) 12.dp else 4.dp,
+                                    bottomEnd = if (msg.isUser) 4.dp else 12.dp
+                                ),
+                                color = bubbleColor,
+                                modifier = Modifier.align(if (msg.isUser) Alignment.CenterEnd else Alignment.CenterStart)
+                                    .widthIn(max = 280.dp)
+                            ) {
+                                Text(msg.text, style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                            }
+                        }
+                    }
+                    if (isTyping) {
+                        Text("Coach is thinking…", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            // Input
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    placeholder = { Text("Ask your coach…") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        if (input.isNotBlank()) { onSend(input); input = "" }
+                    })
+                )
+                IconButton(
+                    onClick = { if (input.isNotBlank()) { onSend(input); input = "" } },
+                    enabled = input.isNotBlank() && !isTyping
+                ) {
+                    if (isTyping) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    else Icon(Icons.Default.Send, contentDescription = "Send")
+                }
+            }
+        }
     }
 }

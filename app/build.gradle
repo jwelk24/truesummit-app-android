@@ -20,6 +20,11 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+
+        def localProps = new Properties()
+        def localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
+        buildConfigField "String", "GEMINI_API_KEY", "\"${localProps.getProperty('GEMINI_API_KEY', '')}\""
     }
 
     buildTypes {
@@ -37,6 +42,7 @@ android {
     }
     buildFeatures {
         compose true
+        buildConfig true
     }
     packagingOptions {
         resources {
