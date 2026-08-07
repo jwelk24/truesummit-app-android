@@ -1,13 +1,17 @@
 package com.truesummit.android.ui.networth
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +34,7 @@ fun PlaidConnectionsScreen(
     onBack: () -> Unit,
     onAddBank: () -> Unit,
     onUpgrade: () -> Unit,
+    onSettleUp: () -> Unit = {},
     viewModel: PlaidConnectionsViewModel = viewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -70,7 +75,9 @@ fun PlaidConnectionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Plaid Connections") },
+                // Matches the Settings row that opens it, and now covers more
+                // than Plaid links.
+                title = { Text("Sync & Account") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -148,6 +155,34 @@ fun PlaidConnectionsScreen(
                         }
                     }
                 }
+            }
+
+            // Sharing a budget with a partner is an account concern, so it
+            // lives here rather than as a sibling row in Settings. Gated on
+            // Family Sharing (Premium); other tiers see it routed to the
+            // paywall, matching how receipt scanning is surfaced.
+            item {
+                SectionHeader("Sharing")
+                val canShare = PremiumManager.canUseHousehold()
+                ListItem(
+                    headlineContent = {
+                        Text(if (canShare) "Shared Expenses" else "Shared Expenses (Premium)")
+                    },
+                    supportingContent = {
+                        Text("Split costs and settle up with a partner.")
+                    },
+                    leadingContent = {
+                        Icon(
+                            if (canShare) Icons.Default.People else Icons.Default.Lock,
+                            contentDescription = null
+                        )
+                    },
+                    trailingContent = {
+                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable { if (canShare) onSettleUp() else onUpgrade() }
+                )
+                HorizontalDivider()
             }
         }
     }

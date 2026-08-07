@@ -16,7 +16,6 @@ import com.truesummit.android.ui.onboarding.OnboardingState
 @Composable
 fun SettingsScreen(
     onSyncAccount: () -> Unit,
-    onSettleUp: () -> Unit,
     onCategoryRules: () -> Unit,
     onSmartAlerts: () -> Unit,
     onSubscriptions: () -> Unit,
@@ -61,10 +60,9 @@ fun SettingsScreen(
             }
             item { SettingsSectionHeader("Account") }
             item {
+                // Shared Expenses lives inside Sync & Account — it's an
+                // account-sharing concern, and it's Premium-gated there.
                 SettingsRow("Sync & Account", Icons.Default.Cloud, onSyncAccount)
-            }
-            item {
-                SettingsRow("Shared Expenses", Icons.Default.People, onSettleUp)
             }
             item { SettingsSectionHeader("Automation") }
             item {

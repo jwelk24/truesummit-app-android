@@ -47,6 +47,7 @@ import java.util.*
 @Composable
 fun ReportsScreen(
     onBack: (() -> Unit)? = null,
+    onTaxPack: () -> Unit = {},
     viewModel: ReportsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -66,6 +67,9 @@ fun ReportsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onTaxPack) {
+                        Icon(Icons.Default.Receipt, contentDescription = "Tax Pack")
+                    }
                     IconButton(onClick = { showExportSheet = true }) {
                         Icon(Icons.Default.Share, contentDescription = "Export")
                     }

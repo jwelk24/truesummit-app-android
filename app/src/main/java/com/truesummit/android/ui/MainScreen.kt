@@ -161,8 +161,6 @@ fun MainScreen() {
                     onPaycheckPlan = { navController.navigate(Screen.PaycheckPlan.route) },
                     onBudgetDraft = { navController.navigate(Screen.BudgetDraft.route) },
                     onDebtPayoff = { navController.navigate(Screen.DebtPayoff.route) },
-                    onSettleUp = { navController.navigate(Screen.SettleUp.route) },
-                    onTaxPack = { navController.navigate(Screen.TaxPack.route) },
                     onAddTransaction = { navController.navigate(Screen.TransactionEditor.route) },
                     onGoToNetWorth = { navController.navigate(Screen.NetWorth.route) },
                     onConnectBank = { navController.navigate(Screen.PlaidConnections.route) },
@@ -190,7 +188,8 @@ fun MainScreen() {
                 PlaidConnectionsScreen(
                     onBack = { navController.popBackStack() },
                     onAddBank = { /* TODO */ },
-                    onUpgrade = { navController.navigate(Screen.Paywall.route) }
+                    onUpgrade = { navController.navigate(Screen.Paywall.route) },
+                    onSettleUp = { navController.navigate(Screen.SettleUp.route) }
                 )
             }
             composable(Screen.Horizon.route) {
@@ -207,7 +206,10 @@ fun MainScreen() {
                 PeaksScreen(onNavigateToCategory = { /* TODO: open category detail */ })
             }
             composable(Screen.Reports.route) {
-                ReportsScreen(onBack = { navController.popBackStack() })
+                ReportsScreen(
+                    onBack = { navController.popBackStack() },
+                    onTaxPack = { navController.navigate(Screen.TaxPack.route) }
+                )
             }
             composable(Screen.More.route) {
                 MoreScreen(
@@ -327,7 +329,6 @@ fun MainScreen() {
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onSyncAccount = { navController.navigate(Screen.PlaidConnections.route) },
-                    onSettleUp = { navController.navigate(Screen.SettleUp.route) },
                     onCategoryRules = { navController.navigate(Screen.CategoryRules.route) },
                     onSmartAlerts = { navController.navigate(Screen.SmartAlerts.route) },
                     onSubscriptions = { navController.navigate(Screen.Subscriptions.route) },

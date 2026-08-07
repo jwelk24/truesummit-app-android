@@ -26,8 +26,6 @@ fun BudgetScreen(
     onPaycheckPlan: () -> Unit,
     onBudgetDraft: () -> Unit = {},
     onDebtPayoff: () -> Unit = {},
-    onSettleUp: () -> Unit = {},
-    onTaxPack: () -> Unit = {},
     onAddTransaction: () -> Unit = {},
     onGoToNetWorth: () -> Unit = {},
     onConnectBank: () -> Unit = {},
@@ -67,16 +65,6 @@ fun BudgetScreen(
                             text = { Text("Debt Payoff") },
                             onClick = { onDebtPayoff(); showMenu = false },
                             leadingIcon = { Icon(Icons.Default.AccountBalance, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Settle Up") },
-                            onClick = { onSettleUp(); showMenu = false },
-                            leadingIcon = { Icon(Icons.Default.People, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Tax Pack") },
-                            onClick = { onTaxPack(); showMenu = false },
-                            leadingIcon = { Icon(Icons.Default.Receipt, contentDescription = null) }
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
