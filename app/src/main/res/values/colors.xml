@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#4F46E5</color>
+    <!-- ic_launcher_background lives in ic_launcher_background.xml, generated
+         by the Image Asset tool alongside the icon it belongs to. -->
     <color name="primary">#4F46E5</color>
     <color name="primary_dark">#3730A3</color>
 </resources>

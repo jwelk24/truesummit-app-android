@@ -9,10 +9,16 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.truesummit.wear"
+        // Must match the phone app. Play delivers the watch APK under the same
+        // listing, distinguished by the android.hardware.type.watch feature
+        // rather than by package name, so a different id would stop the watch
+        // app from ever reaching a paired device.
+        applicationId "com.truesummit.android"
         minSdk 30
         targetSdk 34
-        versionCode 1
+        // Each APK in a multi-APK listing needs its own versionCode. Offsetting
+        // the watch by 1000 keeps the two tracks from colliding as they bump.
+        versionCode 1001
         versionName "1.0"
     }
 

@@ -235,8 +235,10 @@ fun OnboardingWelcomeScreen(
             }
 
             if (step == 0) {
+                // Skip leaves the user with an empty budget they can fill in
+                // themselves. Sample data is a separate, explicit choice — see
+                // the button on the welcome step.
                 TextButton(onClick = {
-                    vm.seedSampleData()
                     OnboardingState.hasCompletedWelcome = true
                     onFinish()
                 }) { Text("Skip", color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -247,7 +249,15 @@ fun OnboardingWelcomeScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (step) {
-                0 -> WelcomeStep(name = displayName, onNameChange = { displayName = it })
+                0 -> WelcomeStep(
+                    name = displayName,
+                    onNameChange = { displayName = it },
+                    onUseSampleData = {
+                        vm.seedSampleData()
+                        OnboardingState.hasCompletedWelcome = true
+                        onFinish()
+                    }
+                )
                 1 -> AccountsStep(accounts = accounts, readyToAssign = readyToAssign, onAccountsChange = { accounts = it })
                 2 -> ReadyToAssignStep(readyToAssign = readyToAssign)
                 3 -> CategoriesStep(
@@ -311,7 +321,11 @@ fun OnboardingWelcomeScreen(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun WelcomeStep(name: String, onNameChange: (String) -> Unit) {
+private fun WelcomeStep(
+    name: String,
+    onNameChange: (String) -> Unit,
+    onUseSampleData: () -> Unit
+) {
     WizardPage(icon = "⛰️", title = "Welcome to TrueSummit", subtitle = "Let's build your budget together — one step at a time.") {
         Text("What should we call you?", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
         OutlinedTextField(value = name, onValueChange = onNameChange, placeholder = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -320,6 +334,16 @@ private fun WelcomeStep(name: String, onNameChange: (String) -> Unit) {
         WizardFeatureRow(Icons.Default.List, "Give every dollar a job", "Assign the money you have to categories so you always know what's safe to spend.")
         WizardFeatureRow(Icons.Default.TouchApp, "Built from your real numbers", "We'll set up your accounts and budget with your money — no sample data to clean up.")
         WizardFeatureRow(Icons.Default.Lock, "Private by default", "Everything stays on this device unless you sign in to sync.")
+
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onUseSampleData, modifier = Modifier.fillMaxWidth()) {
+            Text("Explore with sample data")
+        }
+        Text(
+            "Fills the app with an example budget so you can look around. Best on a fresh install — clearing it means reinstalling.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
