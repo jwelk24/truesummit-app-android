@@ -9,6 +9,27 @@ def localProps = new Properties()
 def localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
 
+// Deliberately no default. A wrong backend host does not fail loudly at
+// runtime — it quietly ships users' transactions, balances and Plaid access
+// tokens to whoever owns that hostname. Guessing it once already pointed this
+// app at a stranger's server, so a release build now refuses to be produced
+// until the real value is supplied.
+def releaseBackendUrl = localProps.getProperty('BACKEND_URL_RELEASE')
+
+gradle.taskGraph.whenReady { graph ->
+    def buildingRelease = graph.allTasks.any {
+        it.project == project && it.name ==~ /(?i).*(assemble|bundle)Release.*/
+    }
+    if (buildingRelease && !releaseBackendUrl) {
+        throw new GradleException(
+            "BACKEND_URL_RELEASE is not set in local.properties.\n" +
+            "Add the HTTPS URL of YOUR deployed backend, e.g.\n" +
+            "  BACKEND_URL_RELEASE=https://<your-service>.onrender.com\n" +
+            "Verify it is yours first: curl <url>/api/health should return {\"ok\":true,...}."
+        )
+    }
+}
+
 android {
     namespace 'com.truesummit.android'
     compileSdk 34
@@ -42,10 +63,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Must be a real HTTPS host: release builds allow no cleartext, and
-            // the emulator loopback address is meaningless on a user's device.
-            buildConfigField "String", "BACKEND_URL",
-                    "\"${localProps.getProperty('BACKEND_URL_RELEASE', 'https://summit-backend.onrender.com')}\""
+            // Required — see the taskGraph check above. Release builds allow no
+            // cleartext, so this must be HTTPS.
+            buildConfigField "String", "BACKEND_URL", "\"${releaseBackendUrl ?: ''}\""
         }
     }
     compileOptions {
