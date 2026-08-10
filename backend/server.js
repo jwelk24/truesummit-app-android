@@ -11,12 +11,22 @@ const {
     PLAID_COUNTRY_CODES = 'US',
     PLAID_LANGUAGE = 'en',
     PLAID_REDIRECT_URI,
+    GEMINI_API_KEY,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     PORT = 8080,
 } = process.env;
 
 if (!PLAID_CLIENT_ID || !PLAID_SECRET) {
     console.error('Missing PLAID_CLIENT_ID or PLAID_SECRET. Copy .env.example to .env and fill them in.');
     process.exit(1);
+}
+
+// The AI routes are optional: the rest of the backend still serves Plaid if
+// Gemini is not configured, it just answers 503 on /api/ai/*.
+const aiEnabled = Boolean(GEMINI_API_KEY && SUPABASE_URL && SUPABASE_ANON_KEY);
+if (!aiEnabled) {
+    console.warn('AI proxy disabled: set GEMINI_API_KEY, SUPABASE_URL and SUPABASE_ANON_KEY to enable /api/ai/generate.');
 }
 
 const plaid = new PlaidApi(new Configuration({
@@ -224,6 +234,133 @@ app.post('/api/sandbox/fire-webhook', async (req, res) => {
         res.json(response.data);
     } catch (e) {
         sendPlaidError(res, e);
+    }
+});
+
+// ── Gemini proxy ────────────────────────────────────────────────────────────
+//
+// The API key lives here, never in the shipped app, where it would be
+// trivially extractable from the APK. Requests must carry a Supabase access
+// token so the key cannot be spent by anyone who finds the URL.
+
+const AI_MODELS = new Set(['gemini-1.5-flash', 'gemini-1.5-pro']);
+const AI_DEFAULT_MODEL = 'gemini-1.5-flash';
+
+// Free tier allows 15 req/min and 1500 req/day across the whole project, so
+// cap per user well under that and keep a global daily ceiling as a backstop.
+const AI_USER_WINDOW_MS = 5 * 60 * 1000;
+const AI_USER_MAX_IN_WINDOW = 20;
+const AI_GLOBAL_DAILY_MAX = 1200;
+
+const aiUserHits = new Map(); // userId -> number[] (timestamps)
+let aiGlobalDay = null;
+let aiGlobalCount = 0;
+
+function aiRateLimit(userId) {
+    const now = Date.now();
+
+    const today = new Date().toISOString().slice(0, 10);
+    if (aiGlobalDay !== today) {
+        aiGlobalDay = today;
+        aiGlobalCount = 0;
+    }
+    if (aiGlobalCount >= AI_GLOBAL_DAILY_MAX) {
+        return { ok: false, reason: 'Daily AI limit reached. Try again tomorrow.' };
+    }
+
+    const hits = (aiUserHits.get(userId) ?? []).filter(t => now - t < AI_USER_WINDOW_MS);
+    if (hits.length >= AI_USER_MAX_IN_WINDOW) {
+        return { ok: false, reason: 'Too many AI requests. Try again in a few minutes.' };
+    }
+    hits.push(now);
+    aiUserHits.set(userId, hits);
+    aiGlobalCount++;
+    return { ok: true };
+}
+
+// Opportunistic cleanup so the map does not grow without bound.
+setInterval(() => {
+    const cutoff = Date.now() - AI_USER_WINDOW_MS;
+    for (const [userId, hits] of aiUserHits) {
+        const live = hits.filter(t => t > cutoff);
+        if (live.length) aiUserHits.set(userId, live);
+        else aiUserHits.delete(userId);
+    }
+}, AI_USER_WINDOW_MS).unref();
+
+/** Resolves the Supabase user for a bearer token, or null if unauthenticated. */
+async function resolveUser(req) {
+    const header = req.get('authorization') ?? '';
+    if (!header.startsWith('Bearer ')) return null;
+    const token = header.slice(7).trim();
+    if (!token) return null;
+    try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+        });
+        if (!r.ok) return null;
+        const user = await r.json();
+        return user?.id ? user : null;
+    } catch (e) {
+        console.error('Supabase token check failed:', e?.message ?? e);
+        return null;
+    }
+}
+
+// Generates content from Gemini. Body mirrors the Gemini REST shape so a
+// multi-turn chat can pass its history straight through:
+//   { model?: string, contents: [{ role, parts: [{ text }] }] }
+// Prompt bodies are never logged - they carry the user's financial data.
+app.post('/api/ai/generate', async (req, res) => {
+    if (!aiEnabled) {
+        return res.status(503).json({ error: { message: 'AI is not configured on this server.' } });
+    }
+
+    const user = await resolveUser(req);
+    if (!user) {
+        return res.status(401).json({ error: { message: 'Sign in to use AI features.' } });
+    }
+
+    const limit = aiRateLimit(user.id);
+    if (!limit.ok) {
+        return res.status(429).json({ error: { message: limit.reason } });
+    }
+
+    const model = AI_MODELS.has(req.body?.model) ? req.body.model : AI_DEFAULT_MODEL;
+    const contents = req.body?.contents;
+    if (!Array.isArray(contents) || contents.length === 0) {
+        return res.status(400).json({ error: { message: 'contents must be a non-empty array.' } });
+    }
+
+    try {
+        const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': GEMINI_API_KEY,
+                },
+                body: JSON.stringify({ contents }),
+            }
+        );
+
+        if (!r.ok) {
+            const detail = await r.text();
+            console.error(`Gemini error ${r.status}`); // status only, no prompt
+            return res.status(r.status).json({
+                error: { message: 'AI request failed.', status: r.status, detail: detail.slice(0, 500) },
+            });
+        }
+
+        const data = await r.json();
+        const text = data?.candidates?.[0]?.content?.parts
+            ?.map(p => p.text ?? '')
+            .join('') ?? '';
+        res.json({ text });
+    } catch (e) {
+        console.error('Gemini proxy failure:', e?.message ?? e);
+        res.status(502).json({ error: { message: 'Could not reach the AI service.' } });
     }
 });
 

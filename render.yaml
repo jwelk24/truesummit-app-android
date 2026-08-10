@@ -23,3 +23,13 @@ services:
         value: en
       - key: PLAID_REDIRECT_URI
         value: https://summit.local/plaid-redirect
+      # Set in the Render dashboard, never committed. The app calls
+      # /api/ai/generate instead of holding this key itself.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        value: https://eebpmgilbguussctttgl.supabase.co
+      # Anon key is public by design; used only to call Supabase's token
+      # introspection endpoint when verifying a caller.
+      - key: SUPABASE_ANON_KEY
+        sync: false

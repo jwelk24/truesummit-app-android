@@ -5,6 +5,10 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
+
 android {
     namespace 'com.truesummit.android'
     compileSdk 34
@@ -21,16 +25,27 @@ android {
             useSupportLibrary true
         }
 
-        def localProps = new Properties()
-        def localPropsFile = rootProject.file("local.properties")
-        if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
-        buildConfigField "String", "GEMINI_API_KEY", "\"${localProps.getProperty('GEMINI_API_KEY', '')}\""
     }
 
+    // The Gemini key is NOT shipped — the app calls the backend's
+    // /api/ai/generate, which holds the key server-side. Anything placed in
+    // BuildConfig lands in the APK and is trivially extractable.
     buildTypes {
+        debug {
+            // 10.0.2.2 is the host machine as seen from the Android emulator.
+            // Override BACKEND_URL in local.properties to point at a device-
+            // reachable address when testing on real hardware.
+            buildConfigField "String", "BACKEND_URL",
+                    "\"${localProps.getProperty('BACKEND_URL', 'http://10.0.2.2:8080')}\""
+        }
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Must be a real HTTPS host: release builds allow no cleartext, and
+            // the emulator loopback address is meaningless on a user's device.
+            buildConfigField "String", "BACKEND_URL",
+                    "\"${localProps.getProperty('BACKEND_URL_RELEASE', 'https://summit-backend.onrender.com')}\""
         }
     }
     compileOptions {
@@ -106,9 +121,6 @@ dependencies {
     implementation "com.patrykandpatrick.vico:compose:$vico_version"
     implementation "com.patrykandpatrick.vico:compose-m3:$vico_version"
     implementation "com.patrykandpatrick.vico:core:$vico_version"
-
-    // Gemini AI
-    implementation "com.google.ai.client.generativeai:generativeai:0.2.2"
 
     // ML Kit Text Recognition
     implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.0'

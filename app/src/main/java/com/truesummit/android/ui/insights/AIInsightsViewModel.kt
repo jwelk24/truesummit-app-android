@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.service.AIInsightsService
+import com.truesummit.android.service.AiTurn
 import com.truesummit.android.service.AnomalyResult
 import com.truesummit.android.service.SavingsSuggestion
 import com.truesummit.android.service.WeeklyDigest
@@ -190,6 +191,9 @@ class AIInsightsViewModel(application: Application) : AndroidViewModel(applicati
 
     fun sendCoachMessage(message: String) {
         viewModelScope.launch {
+            // Snapshot the history before appending, so it becomes the prior
+            // turns rather than including the message we are about to send.
+            val priorTurns = _chatHistory.value.map { AiTurn(it.text, it.isUser) }
             val userMsg = ChatMessage(text = message, isUser = true)
             _chatHistory.value = _chatHistory.value + userMsg
             _isCoachTyping.value = true
@@ -205,7 +209,7 @@ class AIInsightsViewModel(application: Application) : AndroidViewModel(applicati
                         "Spending last 30 days: \$${"%,.2f".format(recentSpend)} | " +
                         "Accounts: ${accounts.size}"
 
-                val reply = ai.chatWithCoach(message, context)
+                val reply = ai.chatWithCoach(message, context, priorTurns)
                 _chatHistory.value = _chatHistory.value + ChatMessage(text = reply, isUser = false)
             } catch (e: Exception) {
                 _chatHistory.value = _chatHistory.value + ChatMessage(

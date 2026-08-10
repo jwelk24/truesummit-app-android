@@ -1,5 +1,6 @@
 package com.truesummit.android.service
 
+import com.truesummit.android.BuildConfig
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
@@ -155,7 +156,10 @@ data class PlaidStudentLiability(
 )
 
 object PlaidService {
-    private const val BASE_URL = "http://10.0.2.2:8080" // Android emulator localhost
+    // Same backend as the AI proxy — emulator loopback in debug, the deployed
+    // HTTPS host in release. Hardcoding the emulator address here meant release
+    // builds pointed at an address that does not exist on a user's device.
+    private val BASE_URL = BuildConfig.BACKEND_URL
 
     val api: PlaidApi = Retrofit.Builder()
         .baseUrl(BASE_URL)

@@ -1,9 +1,6 @@
 package com.truesummit.android.service
 
 import android.content.Context
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.content
-import com.truesummit.android.BuildConfig
 import com.truesummit.android.data.entity.BudgetAllocationEntity
 import com.truesummit.android.data.entity.CategoryEntity
 import com.truesummit.android.data.entity.GoalEntity
@@ -70,11 +67,6 @@ data class NLSearchResult(
 
 class AIInsightsService(private val context: Context) {
 
-    private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash",
-        apiKey = BuildConfig.GEMINI_API_KEY
-    )
-
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val df = SimpleDateFormat("MMM d", Locale.getDefault())
     private val currency = NumberFormat.getCurrencyInstance(Locale.US)
@@ -96,7 +88,7 @@ class AIInsightsService(private val context: Context) {
             $catalog
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return null
+            val raw = GeminiClient.generate(prompt) ?: return null
             json.decodeFromString<CategorySuggestion>(extractJson(raw))
         }.getOrNull()
     }
@@ -119,7 +111,7 @@ class AIInsightsService(private val context: Context) {
             $txLines
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return null
+            val raw = GeminiClient.generate(prompt) ?: return null
             json.decodeFromString<WeeklyDigest>(extractJson(raw))
         }.getOrNull()
     }
@@ -156,7 +148,7 @@ class AIInsightsService(private val context: Context) {
             - Top categories: $topCategories
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return null
+            val raw = GeminiClient.generate(prompt) ?: return null
             json.decodeFromString<MonthRecapData>(extractJson(raw))
         }.getOrNull()
     }
@@ -190,7 +182,7 @@ class AIInsightsService(private val context: Context) {
             $historicalSummary
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return emptyList()
+            val raw = GeminiClient.generate(prompt) ?: return emptyList()
             val arr = extractJsonArray(raw)
             json.decodeFromString<List<AnomalyResult>>(arr)
         }.getOrDefault(emptyList())
@@ -225,7 +217,7 @@ class AIInsightsService(private val context: Context) {
             Active savings goals: $goalSummary
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return emptyList()
+            val raw = GeminiClient.generate(prompt) ?: return emptyList()
             json.decodeFromString<List<SavingsSuggestion>>(extractJsonArray(raw))
         }.getOrDefault(emptyList())
     }
@@ -252,27 +244,41 @@ class AIInsightsService(private val context: Context) {
             "Amazon last week" → merchantKeywords: ["Amazon"], dayRange: 7
         """.trimIndent()
         return runCatching {
-            val raw = model.generateContent(prompt).text ?: return null
+            val raw = GeminiClient.generate(prompt) ?: return null
             json.decodeFromString<NLSearchResult>(extractJson(raw))
         }.getOrNull()
     }
 
     // ── 7. Conversational budget coach ───────────────────────────────────────
 
-    private val chatSession by lazy { model.startChat() }
-
+    /**
+     * The SDK used to hold chat state for us; over the proxy the history is
+     * passed explicitly. The snapshot is restated on each turn rather than
+     * only at the start, both to keep the balances current and to preserve
+     * strict user/model alternation.
+     */
     suspend fun chatWithCoach(
         userMessage: String,
-        financialContext: String
+        financialContext: String,
+        priorTurns: List<AiTurn> = emptyList()
     ): String {
-        val contextPrompt = if (financialContext.isNotBlank()) {
-            "You are TrueSummit's friendly financial coach. Here is the user's current financial snapshot:\n$financialContext\n\nNow answer their question concisely (2-4 sentences max).\n\nUser: $userMessage"
-        } else {
-            "You are TrueSummit's friendly financial coach. Answer concisely (2-4 sentences max).\n\nUser: $userMessage"
+        val preamble = buildString {
+            append("You are TrueSummit's friendly financial coach. ")
+            append("Answer concisely (2-4 sentences max).")
+            if (financialContext.isNotBlank()) {
+                append("\n\nThe user's current snapshot: ")
+                append(financialContext)
+            }
+            append("\n\nUser: ")
         }
-        return runCatching {
-            chatSession.sendMessage(contextPrompt).text ?: "I couldn't generate a response right now."
-        }.getOrDefault("Something went wrong. Please try again.")
+        return try {
+            GeminiClient.chat(priorTurns + AiTurn(preamble + userMessage, isUser = true))
+                .ifBlank { "I couldn't generate a response right now." }
+        } catch (e: AiUnavailable) {
+            e.message ?: "AI is unavailable right now."
+        } catch (_: Exception) {
+            "Something went wrong. Please try again."
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
