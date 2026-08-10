@@ -59,10 +59,10 @@ app.get('/api/health', (_req, res) => {
 // WKWebView and watches for redirect to PLAID_REDIRECT_URI?public_token=...
 app.post('/api/link/token/create', async (req, res) => {
     try {
-        const clientUserId = req.body?.clientUserId ?? 'summit-local-user';
+        const clientUserId = req.body?.clientUserId ?? 'truesummit-local-user';
         const response = await plaid.linkTokenCreate({
             user: { client_user_id: clientUserId },
-            client_name: 'Summit',
+            client_name: 'TrueSummit',
             products,
             country_codes: countryCodes,
             language: PLAID_LANGUAGE,
@@ -377,5 +377,5 @@ function sendPlaidError(res, e) {
 }
 
 app.listen(PORT, () => {
-    console.log(`Summit backend listening on http://localhost:${PORT} (Plaid ${PLAID_ENV})`);
+    console.log(`TrueSummit backend listening on http://localhost:${PORT} (Plaid ${PLAID_ENV})`);
 });

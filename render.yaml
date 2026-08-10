@@ -1,6 +1,9 @@
 services:
   - type: web
-    name: summit-backend
+    # Determines the hostname: https://truesummit-backend.onrender.com
+    # Render subdomains are global and first-come — summit-backend was already
+    # taken by an unrelated service.
+    name: truesummit-backend
     runtime: node
     plan: free
     rootDir: backend
