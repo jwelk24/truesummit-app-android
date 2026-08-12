@@ -1,0 +1,7 @@
+project_id = "eebpmgilbguussctttgl"
+
+# The AI proxy holds a spendable Gemini key, so unlike the Plaid function it
+# requires a Supabase session. The platform verifies the JWT before the
+# function runs, which is why the function itself never checks a signature.
+[functions.ai]
+verify_jwt = true

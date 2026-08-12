@@ -1,6 +1,5 @@
 package com.truesummit.android.service
 
-import com.truesummit.android.BuildConfig
 import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,15 +14,16 @@ data class AiTurn(val text: String, val isUser: Boolean)
 class AiUnavailable(message: String) : Exception(message)
 
 /**
- * Talks to the backend's Gemini proxy.
+ * Talks to the `ai` Supabase Edge Function.
  *
- * The API key stays on the server — shipping it in the APK would let anyone
- * unpack the app and spend the quota, subscription or not. Requests carry the
- * caller's Supabase token so the endpoint is not open to the world.
+ * The API key stays server-side — shipping it in the APK would let anyone
+ * unpack the app and spend the quota, subscription or not. The function is
+ * declared verify_jwt = true, so Supabase rejects unauthenticated callers
+ * before the function runs at all.
  */
 object GeminiClient {
 
-    private const val ENDPOINT = "/api/ai/generate"
+    private val ENDPOINT = "${SupabaseService.FUNCTIONS_URL}/ai"
     private const val TIMEOUT_MS = 60_000
 
     /** Single-shot prompt. Returns null if the call fails for any reason. */
@@ -50,7 +50,7 @@ object GeminiClient {
             .put("contents", contents)
             .toString()
 
-        val conn = (URL(BuildConfig.BACKEND_URL + ENDPOINT).openConnection() as HttpURLConnection).apply {
+        val conn = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS

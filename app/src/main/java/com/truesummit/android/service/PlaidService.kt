@@ -1,33 +1,32 @@
 package com.truesummit.android.service
 
-import com.truesummit.android.BuildConfig
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
 interface PlaidApi {
-    @POST("/api/link/token/create")
+    @POST("api/link/token/create")
     suspend fun createLinkToken(@Body body: Map<String, String>): LinkTokenResponse
 
-    @POST("/api/item/public_token/exchange")
+    @POST("api/item/public_token/exchange")
     suspend fun exchangePublicToken(@Body body: Map<String, String>): ExchangeResponse
 
-    @GET("/api/accounts")
+    @GET("api/accounts")
     suspend fun getAccounts(@Header("X-Plaid-Access-Token") accessToken: String): AccountsResponse
 
-    @POST("/api/transactions/sync")
+    @POST("api/transactions/sync")
     suspend fun syncTransactions(
         @Header("X-Plaid-Access-Token") accessToken: String,
         @Body body: SyncBody
     ): SyncResponse
 
-    @GET("/api/investments/holdings")
+    @GET("api/investments/holdings")
     suspend fun getHoldings(@Header("X-Plaid-Access-Token") accessToken: String): HoldingsResponse
 
-    @GET("/api/investments/transactions")
+    @GET("api/investments/transactions")
     suspend fun getInvestmentTransactions(@Header("X-Plaid-Access-Token") accessToken: String): InvestmentTransactionsResponse
 
-    @GET("/api/liabilities")
+    @GET("api/liabilities")
     suspend fun getLiabilities(@Header("X-Plaid-Access-Token") accessToken: String): LiabilitiesResponse
 }
 
@@ -156,10 +155,11 @@ data class PlaidStudentLiability(
 )
 
 object PlaidService {
-    // Same backend as the AI proxy — emulator loopback in debug, the deployed
-    // HTTPS host in release. Hardcoding the emulator address here meant release
-    // builds pointed at an address that does not exist on a user's device.
-    private val BASE_URL = BuildConfig.BACKEND_URL
+    // The Plaid Edge Function, shared with the iOS app — same Supabase
+    // project, same deployment. Note the endpoint paths above are relative:
+    // a leading slash would make Retrofit discard the /functions/v1/plaid
+    // prefix and call the project root.
+    private val BASE_URL = "${SupabaseService.FUNCTIONS_URL}/plaid/"
 
     val api: PlaidApi = Retrofit.Builder()
         .baseUrl(BASE_URL)

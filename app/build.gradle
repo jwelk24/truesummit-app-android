@@ -5,31 +5,6 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
-def localProps = new Properties()
-def localPropsFile = rootProject.file("local.properties")
-if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
-
-// Deliberately no default. A wrong backend host does not fail loudly at
-// runtime — it quietly ships users' transactions, balances and Plaid access
-// tokens to whoever owns that hostname. Guessing it once already pointed this
-// app at a stranger's server, so a release build now refuses to be produced
-// until the real value is supplied.
-def releaseBackendUrl = localProps.getProperty('BACKEND_URL_RELEASE')
-
-gradle.taskGraph.whenReady { graph ->
-    def buildingRelease = graph.allTasks.any {
-        it.project == project && it.name ==~ /(?i).*(assemble|bundle)Release.*/
-    }
-    if (buildingRelease && !releaseBackendUrl) {
-        throw new GradleException(
-            "BACKEND_URL_RELEASE is not set in local.properties.\n" +
-            "Add the HTTPS URL of YOUR deployed backend, e.g.\n" +
-            "  BACKEND_URL_RELEASE=https://<your-service>.onrender.com\n" +
-            "Verify it is yours first: curl <url>/api/health should return {\"ok\":true,...}."
-        )
-    }
-}
-
 android {
     namespace 'com.truesummit.android'
     compileSdk 34
@@ -48,24 +23,13 @@ android {
 
     }
 
-    // The Gemini key is NOT shipped — the app calls the backend's
-    // /api/ai/generate, which holds the key server-side. Anything placed in
-    // BuildConfig lands in the APK and is trivially extractable.
+    // Both backends are Supabase Edge Functions, addressed off the project URL
+    // the app already knows, so there is no host to configure per build type.
     buildTypes {
-        debug {
-            // 10.0.2.2 is the host machine as seen from the Android emulator.
-            // Override BACKEND_URL in local.properties to point at a device-
-            // reachable address when testing on real hardware.
-            buildConfigField "String", "BACKEND_URL",
-                    "\"${localProps.getProperty('BACKEND_URL', 'http://10.0.2.2:8080')}\""
-        }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Required — see the taskGraph check above. Release builds allow no
-            // cleartext, so this must be HTTPS.
-            buildConfigField "String", "BACKEND_URL", "\"${releaseBackendUrl ?: ''}\""
         }
     }
     compileOptions {
