@@ -90,7 +90,8 @@ data class PlaidSecurity(
 
 // Investment Transactions
 data class InvestmentTransactionsResponse(
-    val investment_transactions: List<PlaidInvestmentTransaction>,
+    // Server sends camelCase here, unlike Plaid's own snake_case payloads.
+    val investmentTransactions: List<PlaidInvestmentTransaction>,
     val securities: List<PlaidSecurity>
 )
 data class PlaidInvestmentTransaction(

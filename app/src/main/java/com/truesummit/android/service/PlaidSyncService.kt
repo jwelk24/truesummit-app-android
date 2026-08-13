@@ -352,7 +352,7 @@ class PlaidSyncService(context: Context) {
         }
         val securitiesById = response.securities.associateBy { it.security_id }
         var count = 0
-        for (tx in response.investment_transactions) {
+        for (tx in response.investmentTransactions) {
             upsertInvestmentTransaction(tx, tx.security_id?.let { securitiesById[it] })
             count++
         }

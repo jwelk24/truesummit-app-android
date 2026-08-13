@@ -1,5 +1,10 @@
 -- Rate-limit state for the AI proxy.
 --
+-- Numbered 0005 because this Supabase project is shared with the iOS app,
+-- whose repo owns migrations 0002-0004. Supabase keys applied migrations on
+-- the version prefix, so a second 0002 here would be treated as already
+-- applied and skipped without warning.
+--
 -- The Render version kept these counters in a JavaScript Map. That was already
 -- unreliable there (the free instance sleeps and the map resets), and it is
 -- worse on Edge Functions, where every invocation may land on a fresh isolate.

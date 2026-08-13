@@ -19,6 +19,11 @@ supabase link --project-ref eebpmgilbguussctttgl
 # 3. Apply the rate-limit table
 supabase db push
 
+# Confirm it actually applied — if the function is missing, the proxy falls
+# back to allowing every request, so a silent skip looks like success:
+#   select public.check_ai_rate_limit('00000000-0000-0000-0000-000000000000');
+# should return null the first time.
+
 # 4. Set the key. Use a NEW one — the previous key was compiled into
 #    already-built APKs, so treat it as burned.
 supabase secrets set GEMINI_API_KEY=<new key from aistudio.google.com>

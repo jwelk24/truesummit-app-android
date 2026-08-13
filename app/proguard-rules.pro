@@ -59,8 +59,15 @@
     @com.google.gson.annotations.SerializedName <fields>;
 }
 
-# Plaid request/response models cross the Gson boundary.
+# Plaid request/response models cross the Gson boundary, so their field names
+# are the wire format and must survive obfuscation. The Plaid* prefix covers
+# most of them; the wrappers below are named for their role instead and would
+# otherwise be renamed, which breaks parsing silently rather than loudly.
 -keep class com.truesummit.android.service.Plaid** { *; }
+-keep class com.truesummit.android.service.*Response { *; }
+-keep class com.truesummit.android.service.Balances { *; }
+-keep class com.truesummit.android.service.SyncBody { *; }
+-keep class com.truesummit.android.service.RemovedTransaction { *; }
 -keep class com.plaid.** { *; }
 -dontwarn com.plaid.**
 
