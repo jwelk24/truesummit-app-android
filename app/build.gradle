@@ -5,6 +5,14 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
+// Signing credentials come from local.properties, which is gitignored. Never
+// commit the keystore or its passwords: anyone holding both can publish an
+// update that Play will accept as genuinely yours.
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
+def hasSigning = localProps.getProperty('RELEASE_STORE_FILE') != null
+
 android {
     namespace 'com.truesummit.android'
     compileSdk 34
@@ -23,6 +31,17 @@ android {
 
     }
 
+    signingConfigs {
+        if (hasSigning) {
+            release {
+                storeFile file(localProps.getProperty('RELEASE_STORE_FILE'))
+                storePassword localProps.getProperty('RELEASE_STORE_PASSWORD')
+                keyAlias localProps.getProperty('RELEASE_KEY_ALIAS')
+                keyPassword localProps.getProperty('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
+
     // Both backends are Supabase Edge Functions, addressed off the project URL
     // the app already knows, so there is no host to configure per build type.
     buildTypes {
@@ -30,6 +49,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Falls back to an unsigned build when credentials are absent, so
+            // the project still builds on a machine without the keystore.
+            if (hasSigning) signingConfig signingConfigs.release
         }
     }
     compileOptions {
