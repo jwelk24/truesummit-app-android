@@ -59,7 +59,7 @@ fun MoreScreen(
             item { MoreSectionHeader("Check-Ins", Icons.Default.CalendarToday) }
             item { MoreRow("Weekly Review", "A 3-minute weekly tidy-up", Icons.Default.Checklist, onWeeklyReview) }
             item { MoreRow("Month Recap", "How last month actually went", Icons.Default.CalendarMonth, onMonthRecap) }
-            item { MoreRow("Summit Wrapped", "Your year in review", Icons.Default.AutoAwesome, onWrapped) }
+            item { MoreRow("TrueSummit Wrapped", "Your year in review", Icons.Default.AutoAwesome, onWrapped) }
             item { MoreRow("Challenges", "Money missions against real spending", Icons.Default.EmojiEvents, onChallenges) }
 
             item { MoreSectionHeader("App", Icons.Default.Settings) }

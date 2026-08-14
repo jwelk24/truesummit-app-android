@@ -497,7 +497,7 @@ fun CheckInsSection(
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
             CheckInRow(
                 icon = Icons.Default.AutoAwesome,
-                label = "Summit Wrapped",
+                label = "TrueSummit Wrapped",
                 badge = null,
                 onClick = onWrapped
             )

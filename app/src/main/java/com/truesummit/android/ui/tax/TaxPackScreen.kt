@@ -337,7 +337,7 @@ fun TaxPackScreen(
                 )
             }
             item {
-                Text("Pick the categories that matter at tax time — donations, medical, childcare, business expenses. Summit pre-selects likely ones by name; your picks are remembered for next year.",
+                Text("Pick the categories that matter at tax time — donations, medical, childcare, business expenses. TrueSummit pre-selects likely ones by name; your picks are remembered for next year.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp))

@@ -72,7 +72,7 @@ object AppLockService {
 
             val prompt = BiometricPrompt(activity, executor, callback)
             val info = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock Summit")
+                .setTitle("Unlock TrueSummit")
                 .setSubtitle(reason)
                 .setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG or

@@ -225,7 +225,7 @@ fun DebtPayoffScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(48.dp))
                     Text("No Debts to Plan", style = MaterialTheme.typography.titleMedium)
-                    Text("Add a credit card or loan account and Summit will build a payoff plan.",
+                    Text("Add a credit card or loan account and TrueSummit will build a payoff plan.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 32.dp))

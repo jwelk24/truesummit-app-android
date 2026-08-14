@@ -269,7 +269,7 @@ fun PrivacyDataScreen(
             item {
                 ListItem(
                     headlineContent = { Text("Show merchant logos") },
-                    supportingContent = { Text("Off by default. Sends merchant names to a logo service — the only Summit feature that uses the network with your data.") },
+                    supportingContent = { Text("Off by default. Sends merchant names to a logo service — the only TrueSummit feature that uses the network with your data.") },
                     leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
                     trailingContent = {
                         Switch(
@@ -305,7 +305,7 @@ fun PrivacyDataScreen(
         AlertDialog(
             onDismissRequest = { showLogoConsentDialog = false },
             title = { Text("Show merchant logos?") },
-            text = { Text("To show logos, Summit sends merchant names from your transactions to a logo service over the internet. It's the only Summit feature that sends any of your data off your device — your budgets, balances, and all AI stay on your phone. You can turn this off anytime.") },
+            text = { Text("To show logos, TrueSummit sends merchant names from your transactions to a logo service over the internet. It's the only TrueSummit feature that sends any of your data off your device — your budgets, balances, and all AI stay on your phone. You can turn this off anytime.") },
             confirmButton = {
                 TextButton(onClick = {
                     merchantLogosEnabled = true

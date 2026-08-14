@@ -55,7 +55,7 @@ fun AuthScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Summit Sync") }) }
+        topBar = { TopAppBar(title = { Text("TrueSummit Sync") }) }
     ) { padding ->
         Column(
             modifier = Modifier

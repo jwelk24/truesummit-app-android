@@ -50,7 +50,7 @@ fun SettingsScreen(
                             value = displayName,
                             onValueChange = { displayName = it; OnboardingState.userDisplayName = it },
                             label = { Text("Your Name") },
-                            placeholder = { Text("How should Summit greet you?") },
+                            placeholder = { Text("How should TrueSummit greet you?") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )

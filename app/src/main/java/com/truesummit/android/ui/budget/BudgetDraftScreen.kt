@@ -180,7 +180,7 @@ fun BudgetDraftScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(48.dp))
                     Text("Not enough history", style = MaterialTheme.typography.titleMedium)
-                    Text("Once a few weeks of categorized spending are in Summit, it can draft a budget for you.",
+                    Text("Once a few weeks of categorized spending are in TrueSummit, it can draft a budget for you.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 32.dp))

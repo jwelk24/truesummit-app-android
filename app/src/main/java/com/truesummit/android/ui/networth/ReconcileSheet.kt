@@ -125,7 +125,7 @@ fun ReconcileSheet(
             when (val r = result) {
                 is ReconcileViewModel.Result.Idle -> {
                     Text(
-                        "Enter the ending balance from your bank statement. Summit will mark all posted transactions as cleared and create a small adjustment if needed.",
+                        "Enter the ending balance from your bank statement. TrueSummit will mark all posted transactions as cleared and create a small adjustment if needed.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

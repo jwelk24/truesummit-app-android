@@ -89,7 +89,7 @@ fun PickPhotoView(padding: PaddingValues, onPick: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Photograph a receipt and Summit will extract the merchant and totals.",
+            "Photograph a receipt and TrueSummit will extract the merchant and totals.",
             modifier = Modifier.padding(32.dp),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

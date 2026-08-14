@@ -27,7 +27,7 @@ fun PaywallScreen(onDismiss: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Upgrade Summit") },
+                title = { Text("Upgrade TrueSummit") },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "Close")
@@ -137,7 +137,7 @@ fun TierCard(
                     Text(" RECOMMENDED", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
-            Text("Summit ${tier.displayName}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("TrueSummit ${tier.displayName}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             
             Spacer(modifier = Modifier.height(16.dp))
             

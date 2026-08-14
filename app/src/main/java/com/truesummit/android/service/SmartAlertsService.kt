@@ -378,6 +378,6 @@ object SmartAlertsService {
     }
 
     fun sendTestNotification(context: Context) {
-        sendNotification(context, "Summit Alerts", "This is what a Summit alert looks like.", 9999)
+        sendNotification(context, "TrueSummit Alerts", "This is what a TrueSummit alert looks like.", 9999)
     }
 }

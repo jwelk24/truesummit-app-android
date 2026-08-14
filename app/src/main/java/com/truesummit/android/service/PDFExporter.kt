@@ -28,7 +28,7 @@ object PDFExporter {
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         paint.textSize = 24f
         paint.color = Color.BLACK
-        canvas.drawText("Summit Report", xMargin, y, paint)
+        canvas.drawText("TrueSummit Report", xMargin, y, paint)
         y += 24f
 
         // Period

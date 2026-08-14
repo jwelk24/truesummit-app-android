@@ -174,7 +174,7 @@ fun EmptyState(onRescan: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
         Text("No Subscriptions Detected", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Summit surfaces recurring charges once you have a few months of data.",
+            "TrueSummit surfaces recurring charges once you have a few months of data.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
