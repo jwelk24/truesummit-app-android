@@ -1,5 +1,10 @@
 project_id = "eebpmgilbguussctttgl"
 
+# No migrations/ directory here on purpose. This project's schema is shared
+# with the iOS app, whose repo owns the full migration history — including
+# 0005_ai_rate_limit.sql, which this function depends on. Run `supabase db
+# push` from TrueSummit-app-iOS, not from here.
+
 # The AI proxy holds a spendable Gemini key, so unlike the Plaid function it
 # requires a Supabase session. The platform verifies the JWT before the
 # function runs, which is why the function itself never checks a signature.

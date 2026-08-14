@@ -6,6 +6,17 @@ the APK can be recovered by unzipping it, subscription check or not.
 Companion to the `plaid` function (which lives in the iOS repo and is shared by
 both apps — same Supabase project, same deployment).
 
+## Migrations live in the iOS repo
+
+This function needs the `ai_usage` table and `check_ai_rate_limit`, but that
+migration is **not here**. The Supabase project is shared by both apps, and a
+shared schema needs one owner for its history — Supabase keys applied
+migrations on the version prefix, so two repos numbering independently collide
+and silently skip one. The iOS repo has the full set, including
+`0005_ai_rate_limit.sql`.
+
+So `supabase db push` runs from `TrueSummit-app-iOS`, never from here.
+
 ## Deploy
 
 ```bash
@@ -16,11 +27,11 @@ brew install supabase/tap/supabase
 supabase login
 supabase link --project-ref eebpmgilbguussctttgl
 
-# 3. Apply the rate-limit table
-supabase db push
+# 3. Apply migrations — FROM THE iOS REPO, which owns them
+(cd ../TrueSummit-app-iOS && supabase db push)
 
-# Confirm it actually applied — if the function is missing, the proxy falls
-# back to allowing every request, so a silent skip looks like success:
+# Confirm it actually applied. If check_ai_rate_limit is missing, the proxy
+# falls back to allowing every request, so a silent skip looks like success:
 #   select public.check_ai_rate_limit('00000000-0000-0000-0000-000000000000');
 # should return null the first time.
 
@@ -28,7 +39,7 @@ supabase db push
 #    already-built APKs, so treat it as burned.
 supabase secrets set GEMINI_API_KEY=<new key from aistudio.google.com>
 
-# 5. Deploy (verify_jwt = true comes from ../../config.toml)
+# 5. Deploy from this repo (verify_jwt = true comes from ../../config.toml)
 supabase functions deploy ai
 ```
 
