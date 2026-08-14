@@ -77,6 +77,14 @@
 -dontwarn io.ktor.**
 -keepclassmembers class io.ktor.** { volatile <fields>; }
 
+# Ktor picks its HTTP engine at runtime through ServiceLoader, so nothing
+# references the engine by name and R8 sees it as unreachable. Losing it fails
+# at launch with "Failed to find HTTP client engine implementation".
+-keep class io.ktor.client.engine.** { *; }
+-keep class io.ktor.client.engine.okhttp.** { *; }
+-keep class * implements io.ktor.client.HttpClientEngineContainer { *; }
+-keep class io.ktor.client.HttpClientEngineContainer { *; }
+
 # ── Compose ──────────────────────────────────────────────────────────────────
 # Compose is largely R8-safe, but the compiler emits classes the shrinker can
 # misjudge when they are only reached from composition.

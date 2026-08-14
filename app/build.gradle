@@ -94,6 +94,13 @@ dependencies {
     // Navigation
     implementation "androidx.navigation:navigation-compose:2.7.7"
 
+    // Supabase talks over Ktor, which resolves its HTTP engine at runtime via
+    // ServiceLoader. supabase-kt does not pull an engine itself, so without
+    // this the client throws "Failed to find HTTP client engine implementation"
+    // the first time it is constructed — which happens at launch, in every
+    // build type. OkHttp is the natural pick: Retrofit already brings it in.
+    implementation "io.ktor:ktor-client-okhttp:2.3.12"
+
     // Supabase
     def supabase_version = "2.6.1"
     implementation "io.github.jan-tennert.supabase:postgrest-kt:$supabase_version"
