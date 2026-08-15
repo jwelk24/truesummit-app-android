@@ -19,8 +19,18 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const MODELS = new Set(["gemini-1.5-flash", "gemini-1.5-pro"]);
-const DEFAULT_MODEL = "gemini-1.5-flash";
+// Google retires model versions, and a retired name returns 404 — which looks
+// exactly like any other failure from the app's side. The "-latest" aliases
+// track the current release, so this does not break again on the next
+// retirement. Pinned names stay allowed for when a specific version matters.
+const MODELS = new Set([
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+]);
+const DEFAULT_MODEL = "gemini-flash-latest";
 
 const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -116,10 +126,16 @@ Deno.serve(async (req) => {
         );
 
         if (!r.ok) {
-            // Status only — prompt bodies carry the user's financial data and
-            // must never reach the logs.
-            console.error(`Gemini error ${r.status}`);
-            return json({ error: { message: "AI request failed.", status: r.status } }, r.status);
+            // Gemini's own message says *why* — wrong model, bad key, quota.
+            // Without it every failure is indistinguishable from the app side.
+            // Safe to pass on: it describes the request, not the prompt, and
+            // the prompt body itself is still never logged.
+            const detail = (await r.text()).slice(0, 300);
+            console.error(`Gemini error ${r.status}: ${detail}`);
+            return json(
+                { error: { message: "AI request failed.", status: r.status, detail } },
+                r.status,
+            );
         }
 
         const data = await r.json();

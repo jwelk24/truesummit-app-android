@@ -1,5 +1,6 @@
 package com.truesummit.android.service
 
+import android.util.Log
 import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,12 +24,21 @@ class AiUnavailable(message: String) : Exception(message)
  */
 object GeminiClient {
 
+    private const val TAG = "GeminiClient"
     private val ENDPOINT = "${SupabaseService.FUNCTIONS_URL}/ai"
     private const val TIMEOUT_MS = 60_000
 
-    /** Single-shot prompt. Returns null if the call fails for any reason. */
+    /**
+     * Single-shot prompt. Returns null if the call fails for any reason.
+     *
+     * Callers treat null as "no result" and show nothing, so without this log
+     * a broken key, an expired session or a retired model all look identical
+     * to the AI simply having nothing to say.
+     */
     suspend fun generate(prompt: String): String? =
-        runCatching { generateOrThrow(listOf(AiTurn(prompt, isUser = true))) }.getOrNull()
+        runCatching { generateOrThrow(listOf(AiTurn(prompt, isUser = true))) }
+            .onFailure { Log.w(TAG, "AI request failed: ${it.message}") }
+            .getOrNull()
 
     /** Multi-turn variant; surfaces failures so chat can show a real message. */
     suspend fun chat(history: List<AiTurn>): String = generateOrThrow(history)
@@ -69,6 +79,10 @@ object GeminiClient {
                 val message = runCatching {
                     JSONObject(payload).getJSONObject("error").optString("message")
                 }.getOrNull().takeUnless { it.isNullOrBlank() } ?: "AI request failed ($code)."
+                // Log the raw payload: the user-facing message is deliberately
+                // vague, which makes a misconfigured key or a retired model
+                // indistinguishable from the model having nothing to say.
+                Log.w(TAG, "AI HTTP $code: ${payload.take(400)}")
                 throw AiUnavailable(message)
             }
 
