@@ -6,6 +6,7 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.truesummit.android.data.serializer.UUIDSerializer
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -20,17 +21,17 @@ enum class HouseholdRole(val value: String) {
 
 @Serializable
 data class Household(
-    val id: UUID,
+    @Serializable(with = UUIDSerializer::class) val id: UUID,
     val name: String,
-    val owner_user_id: UUID,
+    @Serializable(with = UUIDSerializer::class) val owner_user_id: UUID,
     val created_at: String
 )
 
 @Serializable
 data class HouseholdMember(
-    val id: UUID,
-    val household_id: UUID,
-    val user_id: UUID,
+    @Serializable(with = UUIDSerializer::class) val id: UUID,
+    @Serializable(with = UUIDSerializer::class) val household_id: UUID,
+    @Serializable(with = UUIDSerializer::class) val user_id: UUID,
     val role: String,
     val joined_at: String
 )
@@ -45,9 +46,9 @@ enum class HouseholdError(val message: String) {
 @Serializable
 private data class InviteInsert(
     val code: String,
-    val household_id: UUID,
+    @Serializable(with = UUIDSerializer::class) val household_id: UUID,
     val role: String,
-    val created_by: UUID,
+    @Serializable(with = UUIDSerializer::class) val created_by: UUID,
     val expires_at: String
 )
 

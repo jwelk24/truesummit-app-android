@@ -3,6 +3,10 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-kapt'
     id 'org.jetbrains.kotlin.plugin.compose'
+    // Required for @Serializable to actually generate serializers — the
+    // runtime library alone is not enough. The AI response models are parsed
+    // with it, and every parse was failing silently without this.
+    id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
 // Signing credentials come from local.properties, which is gitignored. Never
