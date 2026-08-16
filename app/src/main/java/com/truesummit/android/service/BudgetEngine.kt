@@ -483,7 +483,14 @@ class BudgetEngine(context: Context) {
 
     // MARK: - Reset & Seed
 
-    suspend fun resetAllData() {
+    /**
+     * Deletes every local record.
+     *
+     * [reseed] restores the sample accounts and transactions afterwards. It
+     * defaults to false: the main reason to call this is to get *rid* of the
+     * sample data, and re-creating it was the opposite of what that needs.
+     */
+    suspend fun resetAllData(reseed: Boolean = false) {
         db.transactionDao().getAll().first().forEach { tx ->
             db.transactionDao().deleteSplitsForTransaction(tx.id)
             db.transactionDao().delete(tx)
@@ -494,7 +501,7 @@ class BudgetEngine(context: Context) {
         db.scheduledItemDao().getAll().first().forEach { db.scheduledItemDao().delete(it) }
         db.categoryDao().getCategoriesList().forEach { db.categoryDao().deleteCategory(it) }
         db.accountDao().getAll().first().forEach { db.accountDao().delete(it) }
-        seedIfNeeded()
+        if (reseed) seedIfNeeded()
     }
 
     suspend fun seedIfNeeded() {

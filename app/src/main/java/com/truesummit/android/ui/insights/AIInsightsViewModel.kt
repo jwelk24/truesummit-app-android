@@ -1,5 +1,6 @@
 package com.truesummit.android.ui.insights
 
+import com.truesummit.android.service.MoneyQueryService
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -86,7 +87,20 @@ class AIInsightsViewModel(application: Application) : AndroidViewModel(applicati
                 val cats = db.categoryDao().getCategories().first()
                 val catNames = cats.associate { it.id to it.name }
 
-                // Use Gemini to parse the query into filters
+                // Try the on-device engine first. It answers the common shapes
+                // ("groceries this month", "income last month") instantly, with
+                // no network and nothing leaving the device — Gemini is only
+                // worth a round-trip for phrasing the local parser cannot read.
+                val local = MoneyQueryService.execute(
+                    MoneyQueryService.parse(question), txs, catNames
+                )
+                if (local.transactions.isNotEmpty()) {
+                    _queryResult.value = local.answer
+                    return@launch
+                }
+
+                // Nothing matched locally. That is usually odd phrasing rather
+                // than an empty ledger, so let Gemini reinterpret it.
                 val parsed = ai.parseNaturalLanguageSearch(question)
                 if (parsed != null) {
                     val cutoff = if (parsed.dayRange != null) {
@@ -117,7 +131,10 @@ class AIInsightsViewModel(application: Application) : AndroidViewModel(applicati
                                 if (matched.size > 5) "\n…and ${matched.size - 5} more" else ""
                     }
                 } else {
-                    _queryResult.value = "Couldn't understand that query — try something like \"coffee last month\" or \"over \$50 at restaurants\"."
+                    // Gemini unreachable or unparseable — the local engine still
+                    // read the question well enough to say something true, so
+                    // show that rather than a bare failure.
+                    _queryResult.value = local.answer
                 }
             } catch (e: Exception) {
                 _queryResult.value = "Couldn't process that — try rephrasing."

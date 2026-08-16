@@ -1,5 +1,6 @@
 package com.truesummit.android.ui.settings
 
+import com.truesummit.android.service.BudgetEngine
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -167,6 +168,26 @@ class PrivacyDataViewModel(application: Application) : AndroidViewModel(applicat
             syncPrefs.edit().remove("household_id").remove("user_id").apply()
         }
     }
+
+    private val _eraseLocalResult = MutableStateFlow<String?>(null)
+    val eraseLocalResult: StateFlow<String?> = _eraseLocalResult
+    fun dismissEraseLocalResult() { _eraseLocalResult.value = null }
+
+    /**
+     * Wipes every local record. Without this there was no way to remove the
+     * sample data short of reinstalling, which is what the onboarding button
+     * had to warn about.
+     */
+    fun eraseLocalData() {
+        viewModelScope.launch {
+            _eraseLocalResult.value = try {
+                BudgetEngine(getApplication()).resetAllData(reseed = false)
+                "All local accounts, transactions, budgets and goals have been deleted."
+            } catch (e: Exception) {
+                "Could not erase local data: ${e.message}"
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -179,6 +200,8 @@ fun PrivacyDataScreen(
     val localOnly by viewModel.localOnlyMode.collectAsState()
     val importResult by viewModel.importResult.collectAsState()
     var showEraseDialog by remember { mutableStateOf(false) }
+    var showEraseLocalDialog by remember { mutableStateOf(false) }
+    val eraseLocalResult by viewModel.eraseLocalResult.collectAsState()
     var exportJson by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var merchantLogosEnabled by remember { mutableStateOf(MerchantLogoService.isEnabled(context)) }
@@ -317,6 +340,16 @@ fun PrivacyDataScreen(
                     leadingContent = { Icon(Icons.Default.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                     modifier = Modifier.fillMaxWidth().clickable { showEraseDialog = true }
                 )
+                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text("Erase Local Data") },
+                    supportingContent = { Text("Deletes every account, transaction, budget and goal on this device. Cannot be undone.") },
+                    leadingContent = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    modifier = Modifier.fillMaxWidth().clickable { showEraseLocalDialog = true }
+                )
             }
         }
     }
@@ -359,6 +392,42 @@ fun PrivacyDataScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEraseDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showEraseLocalDialog) {
+        AlertDialog(
+            onDismissRequest = { showEraseLocalDialog = false },
+            title = { Text("Erase Local Data?") },
+            text = {
+                Text(
+                    "This permanently deletes every account, transaction, budget and goal " +
+                    "stored on this device, including any sample data. It cannot be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.eraseLocalData()
+                        showEraseLocalDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Erase Everything") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEraseLocalDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    eraseLocalResult?.let { message ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissEraseLocalResult() },
+            title = { Text("Erase Local Data") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissEraseLocalResult() }) { Text("OK") }
             }
         )
     }
