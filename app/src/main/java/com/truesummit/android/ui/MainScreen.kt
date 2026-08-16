@@ -1,5 +1,9 @@
 package com.truesummit.android.ui
 
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.truesummit.android.ui.transactions.viewmodel.TransactionsViewModel
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
@@ -75,6 +79,19 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+
+    // The CSV picker is registered here rather than inside TransactionsScreen.
+    // Leaving the app for the system file picker can recreate MainActivity, and
+    // the NavHost then restarts on its first tab — so a launcher registered
+    // inside the Transactions composition is gone by the time the result comes
+    // back, and the pick is silently dropped. MainScreen is always composed, so
+    // it re-registers and receives the result either way.
+    val csvViewModel: TransactionsViewModel = viewModel()
+    val csvImportMessage by csvViewModel.importMessage.collectAsState()
+    val csvPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { csvViewModel.importCsv(it) } }
+
     val tourActive by FeatureTourState.isActive.collectAsState()
     val tourStop by FeatureTourState.currentStop.collectAsState()
     var showOnboarding by remember { mutableStateOf(!OnboardingState.hasCompletedWelcome) }
@@ -175,7 +192,18 @@ fun MainScreen() {
                     onScanReceipt = { navController.navigate(Screen.ReceiptScanner.route) },
                     onUpgrade = { navController.navigate(Screen.Paywall.route) },
                     onRefundTracker = { navController.navigate(Screen.RefundTracker.route) },
-                    onReviewInbox = { navController.navigate(Screen.ReviewInbox.route) }
+                    onReviewInbox = { navController.navigate(Screen.ReviewInbox.route) },
+                    onImportCsv = {
+                        csvPicker.launch(
+                            arrayOf(
+                                "text/csv",
+                                "text/comma-separated-values",
+                                "text/plain",
+                                "application/csv",
+                                "*/*"
+                            )
+                        )
+                    }
                 )
             }
             composable(Screen.ReceiptScanner.route) {
@@ -424,6 +452,19 @@ fun MainScreen() {
         }
     }
     } // end outer Box
+
+    // Shown from here for the same reason the launcher lives here: the import
+    // can finish after the Transactions screen has been torn down.
+    csvImportMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { csvViewModel.dismissImportMessage() },
+            title = { Text("Import Result") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { csvViewModel.dismissImportMessage() }) { Text("OK") }
+            }
+        )
+    }
 }
 
 @Composable

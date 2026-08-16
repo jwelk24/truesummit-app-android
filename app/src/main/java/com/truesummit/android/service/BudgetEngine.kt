@@ -388,10 +388,21 @@ class BudgetEngine(context: Context) {
         val categoryIdx = header.indexOf("category").takeIf { it >= 0 }
         val memoIdx = header.indexOf("memo").takeIf { it >= 0 }
 
-        val formatters = listOf("yyyy-MM-dd", "MM/dd/yyyy", "yyyy/MM/dd").map { fmt ->
-            SimpleDateFormat(fmt, Locale.US)
+        val formatters = listOf("yyyy-MM-dd", "MM/dd/yyyy", "yyyy/MM/dd", "dd/MM/yyyy").map { fmt ->
+            // Non-lenient, or "MM/dd/yyyy" happily reads 13/01/2026 as a date in
+            // the following year and silently files the row under the wrong month.
+            SimpleDateFormat(fmt, Locale.US).apply { isLenient = false }
         }
-        fun parseDate(s: String): Date? = formatters.firstNotNullOfOrNull { it.parse(s) }
+
+        // SimpleDateFormat.parse throws rather than returning null, so a plain
+        // firstNotNullOfOrNull lets the first mismatched format abort the whole
+        // import — which is every Mint export, since those are MM/dd/yyyy and
+        // the ISO pattern is tried first.
+        fun parseDate(s: String): Date? {
+            val trimmed = s.trim()
+            if (trimmed.isEmpty()) return null
+            return formatters.firstNotNullOfOrNull { runCatching { it.parse(trimmed) }.getOrNull() }
+        }
 
         for (line in lines.drop(1)) {
             val fields = parseCSVLine(line)

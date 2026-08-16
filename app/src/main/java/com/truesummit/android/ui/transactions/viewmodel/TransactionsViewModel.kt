@@ -1,5 +1,11 @@
 package com.truesummit.android.ui.transactions.viewmodel
 
+import android.net.Uri
+import com.truesummit.android.service.BudgetEngine
+import com.truesummit.android.service.CompetitorCSVImporter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -77,6 +83,57 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
     fun deleteTransaction(transaction: TransactionEntity) {
         viewModelScope.launch {
             db.transactionDao().delete(transaction)
+        }
+    }
+
+    // ── CSV import ────────────────────────────────────────────────────────────
+
+    private val _importMessage = MutableStateFlow<String?>(null)
+    val importMessage: StateFlow<String?> = _importMessage
+
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting
+
+    fun dismissImportMessage() { _importMessage.value = null }
+
+    /**
+     * Reads a CSV the user picked and imports it, mirroring the iOS flow:
+     * detect a Mint / YNAB / Monarch export and transcode it first, otherwise
+     * hand the file to the generic importer as-is.
+     */
+    fun importCsv(uri: Uri) {
+        viewModelScope.launch {
+            _isImporting.value = true
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver
+                        .openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                }
+                if (content.isNullOrBlank()) {
+                    _importMessage.value = "Could not read that file as text."
+                    return@launch
+                }
+
+                val toImport = CompetitorCSVImporter.transcodeIfKnown(content) ?: content
+                val accounts = db.accountDao().getAll().first()
+                val categories = db.categoryDao().getCategories().first()
+                val result = BudgetEngine(getApplication()).importCSV(toImport, accounts, categories)
+
+                _importMessage.value = buildString {
+                    append("Imported ${result.imported}, skipped ${result.skipped}.")
+                    if (result.errors.isNotEmpty()) {
+                        append("\n\n")
+                        append(result.errors.take(3).joinToString("\n"))
+                        if (result.errors.size > 3) {
+                            append("\n…and ${result.errors.size - 3} more.")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _importMessage.value = "Import failed: ${e.message}"
+            } finally {
+                _isImporting.value = false
+            }
         }
     }
 }

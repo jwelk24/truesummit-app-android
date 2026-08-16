@@ -52,6 +52,7 @@ fun TransactionsScreen(
     onUpgrade: () -> Unit,
     onRefundTracker: () -> Unit,
     onReviewInbox: () -> Unit = {},
+    onImportCsv: () -> Unit = {},
     viewModel: TransactionsViewModel = viewModel()
 ) {
     val transactions by viewModel.transactions.collectAsState()
@@ -96,6 +97,11 @@ fun TransactionsScreen(
                                 if (PremiumManager.canScanReceipts()) onScanReceipt() else onUpgrade()
                             },
                             leadingIcon = { Icon(Icons.Default.DocumentScanner, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Import CSV (Mint, YNAB, Monarch…)") },
+                            onClick = { showAddMenu = false; onImportCsv() },
+                            leadingIcon = { Icon(Icons.Default.FileDownload, contentDescription = null) }
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
@@ -158,8 +164,10 @@ fun TransactionsScreen(
                 state = pullToRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
+
         }
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
