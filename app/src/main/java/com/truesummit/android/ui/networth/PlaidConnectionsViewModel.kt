@@ -48,7 +48,17 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
             _linkError.value = null
             try {
                 val userId = SupabaseService.currentUserID.first()?.toString() ?: "android_user"
-                val response = PlaidService.api.createLinkToken(mapOf("user_id" to userId))
+                // "clientUserId", not "user_id": the Edge Function reads the
+                // former, so the old key was discarded and every Android user
+                // was created as the same Plaid user. "platform" selects the
+                // native-SDK branch, which sends android_package_name instead
+                // of the Hosted Link parameters iOS needs.
+                val response = PlaidService.api.createLinkToken(
+                    mapOf(
+                        "clientUserId" to userId,
+                        "platform" to "android"
+                    )
+                )
                 _pendingLinkToken.value = response.linkToken
             } catch (e: Exception) {
                 _linkError.value = "Could not start bank link: ${e.localizedMessage}"

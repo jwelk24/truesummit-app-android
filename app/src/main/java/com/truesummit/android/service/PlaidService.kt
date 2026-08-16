@@ -30,7 +30,11 @@ interface PlaidApi {
     suspend fun getLiabilities(@Header("X-Plaid-Access-Token") accessToken: String): LiabilitiesResponse
 }
 
-data class LinkTokenResponse(val linkToken: String, val hostedLinkUrl: String)
+// hostedLinkUrl is null on Android: the native SDK branch creates no hosted
+// link. Declaring it non-null was a lie Gson would not catch — it populates
+// fields reflectively and would leave a null in a String, blowing up at the
+// first read rather than at parse time.
+data class LinkTokenResponse(val linkToken: String, val hostedLinkUrl: String?)
 data class ExchangeResponse(val accessToken: String, val itemId: String)
 data class AccountsResponse(val item: PlaidItem, val accounts: List<PlaidAccount>)
 data class PlaidItem(val item_id: String, val institution_id: String?)
