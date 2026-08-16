@@ -205,7 +205,7 @@ fun InsightsHeroCard(digestHeadline: String?, isPremium: Boolean) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "ON-DEVICE AI",
+                    "AI INSIGHTS",
                     style = MaterialTheme.typography.labelSmall.copy(
                         letterSpacing = 0.6.sp,
                         fontWeight = FontWeight.SemiBold
@@ -231,12 +231,12 @@ fun InsightsHeroCard(digestHeadline: String?, isPremium: Boolean) {
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    if (digestHeadline == null) "On-Device Insights" else "Latest Digest",
+                    if (digestHeadline == null) "AI Insights" else "Latest Digest",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    digestHeadline ?: "Private summaries that never leave your device.",
+                    digestHeadline ?: "Summaries and answers drawn from your own numbers.",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 3,
@@ -245,8 +245,8 @@ fun InsightsHeroCard(digestHeadline: String?, isPremium: Boolean) {
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                InsightsTrait(Icons.Default.Lock, "On-device", Modifier.weight(1f))
-                InsightsTrait(Icons.Default.Shield, "Private", Modifier.weight(1f))
+                InsightsTrait(Icons.Default.Cloud, "Cloud AI", Modifier.weight(1f))
+                InsightsTrait(Icons.Default.Lock, "Encrypted", Modifier.weight(1f))
                 InsightsTrait(Icons.Default.AllInclusive, "Free", Modifier.weight(1f))
             }
         }
@@ -302,7 +302,7 @@ fun AskYourMoneyCard(
                 Text("Ask Your Money", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Text(
-                "Ask a plain-English question about your spending or income — answered on your device.",
+                "Ask a plain-English question about your spending or income. Your question and a summary of matching transactions are sent to Google Gemini to interpret.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

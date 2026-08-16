@@ -333,7 +333,7 @@ private fun WelcomeStep(
         Spacer(Modifier.height(8.dp))
         WizardFeatureRow(Icons.Default.List, "Give every dollar a job", "Assign the money you have to categories so you always know what's safe to spend.")
         WizardFeatureRow(Icons.Default.TouchApp, "Built from your real numbers", "We'll set up your accounts and budget with your money — no sample data to clean up.")
-        WizardFeatureRow(Icons.Default.Lock, "Private by default", "Everything stays on this device unless you sign in to sync.")
+        WizardFeatureRow(Icons.Default.Lock, "Private by default", "Your budget lives on this device. Sync and AI features send data only when you turn them on.")
 
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onUseSampleData, modifier = Modifier.fillMaxWidth()) {

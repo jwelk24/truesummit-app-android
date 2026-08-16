@@ -1,5 +1,7 @@
 package com.truesummit.android.service
 
+import android.util.Log
+
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.onEach
 import java.util.UUID
 
 object SupabaseService {
+    private const val TAG = "SupabaseService"
     const val PROJECT_URL = "https://eebpmgilbguussctttgl.supabase.co"
 
     /**
@@ -60,20 +63,22 @@ object SupabaseService {
     init {
         client.auth.sessionStatus
             .onEach { status ->
-                println("SupabaseService: Auth status changed to $status")
+                // Log the state name only. Printing the status itself dumped the
+                // whole session — access token, refresh token and email — into
+                // logcat, including in release builds, where it is picked up by
+                // bug reports and anything reading device logs.
+                Log.d(TAG, "Auth status: ${status::class.simpleName}")
                 when (status) {
                     is SessionStatus.Authenticated -> {
                         val user = status.session.user
                         _currentUserID.value = user?.id?.let { UUID.fromString(it) }
                         _currentEmail.value = user?.email
                         _isAuthenticated.value = true
-                        println("SupabaseService: User authenticated: ${user?.email}")
                     }
                     else -> {
                         _currentUserID.value = null
                         _currentEmail.value = null
                         _isAuthenticated.value = false
-                        println("SupabaseService: User not authenticated")
                     }
                 }
             }

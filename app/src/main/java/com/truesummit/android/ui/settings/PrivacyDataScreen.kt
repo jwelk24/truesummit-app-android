@@ -269,7 +269,7 @@ fun PrivacyDataScreen(
             item {
                 ListItem(
                     headlineContent = { Text("Show merchant logos") },
-                    supportingContent = { Text("Off by default. Sends merchant names to a logo service — the only TrueSummit feature that uses the network with your data.") },
+                    supportingContent = { Text("Off by default. Sends merchant names to a logo service. See AI Features below for the other network feature.") },
                     leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
                     trailingContent = {
                         Switch(
@@ -284,6 +284,26 @@ fun PrivacyDataScreen(
                             }
                         )
                     }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+            }
+
+            item { SettingsSectionHeader("AI Features") }
+
+            item {
+                ListItem(
+                    headlineContent = { Text("How AI features use your data") },
+                    supportingContent = {
+                        Text(
+                            "Insights, digests, categorization and the coach send the relevant " +
+                            "transactions — merchant names, amounts, dates and categories — to " +
+                            "Google Gemini through TrueSummit's server, which holds the API key. " +
+                            "Requests require you to be signed in. Nothing is sent unless you " +
+                            "start an AI feature, and account numbers and credentials are never " +
+                            "included."
+                        )
+                    },
+                    leadingContent = { Icon(Icons.Default.AutoAwesome, contentDescription = null) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
             }
@@ -305,7 +325,7 @@ fun PrivacyDataScreen(
         AlertDialog(
             onDismissRequest = { showLogoConsentDialog = false },
             title = { Text("Show merchant logos?") },
-            text = { Text("To show logos, TrueSummit sends merchant names from your transactions to a logo service over the internet. It's the only TrueSummit feature that sends any of your data off your device — your budgets, balances, and all AI stay on your phone. You can turn this off anytime.") },
+            text = { Text("To show logos, TrueSummit sends merchant names from your transactions to a logo service over the internet. Your budgets and balances are not included. You can turn this off anytime.") },
             confirmButton = {
                 TextButton(onClick = {
                     merchantLogosEnabled = true
