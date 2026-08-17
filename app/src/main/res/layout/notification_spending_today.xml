@@ -74,7 +74,10 @@
             android:text="0 transactions"
             android:textSize="12sp"
             android:textColor="#888888" />
-        <View
+        <!-- FrameLayout, not View or Space: RemoteViews only inflates a fixed
+             whitelist of classes, and a bare View throws "Class not allowed to
+             be inflated", which failed the whole notification silently. -->
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
