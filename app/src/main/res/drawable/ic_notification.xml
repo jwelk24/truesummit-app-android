@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Notification small icon: a flat white silhouette of the TrueSummit peaks.
+
+  Android masks small icons by alpha and tints them, so this cannot be the
+  launcher artwork — a full-bleed colour image has no transparency and renders
+  as a solid white square in the status bar. Drawn at 24dp, the size the system
+  actually shows, rather than scaling a 108dp launcher asset down.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Main peak with the two flanking ridges, as one silhouette: separate
+         overlapping shapes lose their edges once tinted a single colour. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M1,20 L6.4,12.2 L9.2,16.1 L12,4 L15.6,11.6 L17.8,9.4 L23,20 Z" />
+</vector>
