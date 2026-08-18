@@ -75,7 +75,12 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
     fun onLinkSuccess(publicToken: String, institutionName: String?) {
         viewModelScope.launch {
             try {
-                val exchange = PlaidService.api.exchangePublicToken(mapOf("public_token" to publicToken))
+                // "publicToken", not "public_token": the Edge Function reads the
+                // camelCase key. Plaid's own API is snake_case, which is what
+                // made the wrong key look right — the exchange 400'd, the link
+                // was discarded, and the bank appeared linked at Plaid while the
+                // app showed nothing.
+                val exchange = PlaidService.api.exchangePublicToken(mapOf("publicToken" to publicToken))
                 val item = StoredPlaidItem(
                     itemId = exchange.itemId,
                     accessToken = exchange.accessToken,
