@@ -2,6 +2,7 @@ package com.truesummit.android.service
 
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.Apple
+import io.github.jan.supabase.gotrue.providers.Google
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.providers.builtin.IDToken
 import java.security.MessageDigest
@@ -57,6 +58,14 @@ object AuthService {
             this.idToken = idToken
             this.nonce = nonce
             this.provider = Apple
+        }
+    }
+
+    suspend fun signInWithGoogle(idToken: String, nonce: String) {
+        auth.signInWith(IDToken) {
+            this.idToken = idToken
+            this.nonce = nonce
+            this.provider = Google
         }
     }
 
