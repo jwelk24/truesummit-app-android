@@ -7,10 +7,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.truesummit.android.ui.MainScreen
 import com.truesummit.android.ui.auth.AuthScreen
+import com.truesummit.android.service.HouseholdService
+import com.truesummit.android.service.RealtimeService
 import com.truesummit.android.ui.theme.TrueSummitTheme
 import com.truesummit.android.service.SupabaseService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,12 +47,22 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Household load and realtime used to be driven from
+                    // AuthScreen, which only renders while signed *out* — so
+                    // neither ever ran for a signed-in user. They are session
+                    // concerns, not screen concerns, so they live here.
+                    val household by HouseholdService.currentHousehold.collectAsStateWithLifecycle()
+                    LaunchedEffect(isAuthenticated) {
+                        if (isAuthenticated) HouseholdService.refresh() else RealtimeService.stop()
+                    }
+                    LaunchedEffect(household) {
+                        household?.id?.let { RealtimeService.start(this@MainActivity, it) }
+                    }
+
                     if (isAuthenticated) {
                         MainScreen()
                     } else {
-                        // In a real app, we'd handle onUpgrade differently here, 
-                        // but MainScreen handles its own navigation.
-                        AuthScreen(onUpgrade = { /* Navigation handled in MainScreen */ })
+                        AuthScreen()
                     }
                 }
             }

@@ -25,6 +25,7 @@ import com.plaid.link.configuration.LinkTokenConfiguration
 import com.plaid.link.result.LinkSuccess
 import com.truesummit.android.billing.PremiumManager
 import com.truesummit.android.service.StoredPlaidItem
+import com.truesummit.android.ui.account.AccountSection
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -91,6 +92,14 @@ fun PlaidConnectionsScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
+            // The account block leads: it is the only place to sign out, and
+            // the bank list below is meaningless without a session.
+            item {
+                SectionHeader("Account")
+                AccountSection(onUpgrade = onUpgrade)
+                HorizontalDivider()
+            }
+
             item {
                 SectionHeader("Linked Items")
             }
