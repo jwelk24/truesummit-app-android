@@ -21,3 +21,6 @@ build/
 local.properties
 commonMain/
 *.hprof
+
+# Supabase CLI scratch state (project ref, temp keys) — machine-local.
+supabase/.temp/
