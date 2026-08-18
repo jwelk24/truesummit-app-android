@@ -45,22 +45,6 @@ fun PlaidConnectionsScreen(
     val isLinkLoading by viewModel.isLinkLoading.collectAsStateWithLifecycle()
     val linkError by viewModel.linkError.collectAsStateWithLifecycle()
 
-    val plaidLauncher = rememberLauncherForActivityResult(OpenPlaidLink()) { result ->
-        when (result) {
-            is LinkSuccess -> viewModel.onLinkSuccess(
-                publicToken = result.publicToken,
-                institutionName = result.metadata.institution?.name
-            )
-            else -> { /* user exited without linking */ }
-        }
-    }
-
-    LaunchedEffect(pendingLinkToken) {
-        val token = pendingLinkToken ?: return@LaunchedEffect
-        val config = LinkTokenConfiguration.Builder().token(token).build()
-        viewModel.onLinkTokenConsumed()
-        plaidLauncher.launch(config)
-    }
 
     linkError?.let { error ->
         AlertDialog(

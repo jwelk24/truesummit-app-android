@@ -1,5 +1,9 @@
 package com.truesummit.android.ui
 
+import com.truesummit.android.ui.networth.PlaidConnectionsViewModel
+import com.plaid.link.configuration.LinkTokenConfiguration
+import com.plaid.link.result.LinkSuccess
+import com.plaid.link.OpenPlaidLink
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.truesummit.android.ui.transactions.viewmodel.TransactionsViewModel
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,12 +84,32 @@ import androidx.compose.ui.unit.sp
 fun MainScreen() {
     val navController = rememberNavController()
 
-    // The CSV picker is registered here rather than inside TransactionsScreen.
-    // Leaving the app for the system file picker can recreate MainActivity, and
-    // the NavHost then restarts on its first tab — so a launcher registered
-    // inside the Transactions composition is gone by the time the result comes
-    // back, and the pick is silently dropped. MainScreen is always composed, so
-    // it re-registers and receives the result either way.
+    // Both activity-result launchers below are registered here, not inside the
+    // screens that use them. Leaving the app — to the system file picker, or to
+    // Plaid Link and on to Messages for an SMS code — can recreate
+    // MainActivity, and the NavHost then restarts on its first tab. A launcher
+    // registered inside a screen's composition no longer exists when the result
+    // arrives, so it is dropped with no error at all. MainScreen is always
+    // composed, so it re-registers and receives the result either way.
+    //
+    // For Plaid that failure is expensive: the bank links successfully, a Plaid
+    // connection is consumed, and the app never learns the item exists.
+    val plaidViewModel: PlaidConnectionsViewModel = viewModel()
+    val pendingLinkToken by plaidViewModel.pendingLinkToken.collectAsState()
+    val plaidLauncher = rememberLauncherForActivityResult(OpenPlaidLink()) { result ->
+        if (result is LinkSuccess) {
+            plaidViewModel.onLinkSuccess(
+                publicToken = result.publicToken,
+                institutionName = result.metadata.institution?.name
+            )
+        }
+    }
+    LaunchedEffect(pendingLinkToken) {
+        val token = pendingLinkToken ?: return@LaunchedEffect
+        plaidViewModel.onLinkTokenConsumed()
+        plaidLauncher.launch(LinkTokenConfiguration.Builder().token(token).build())
+    }
+
     val csvViewModel: TransactionsViewModel = viewModel()
     val csvImportMessage by csvViewModel.importMessage.collectAsState()
     val csvPicker = rememberLauncherForActivityResult(
@@ -217,7 +241,8 @@ fun MainScreen() {
                     onBack = { navController.popBackStack() },
                     onAddBank = { /* TODO */ },
                     onUpgrade = { navController.navigate(Screen.Paywall.route) },
-                    onSettleUp = { navController.navigate(Screen.SettleUp.route) }
+                    onSettleUp = { navController.navigate(Screen.SettleUp.route) },
+                    viewModel = plaidViewModel
                 )
             }
             composable(Screen.Horizon.route) {
