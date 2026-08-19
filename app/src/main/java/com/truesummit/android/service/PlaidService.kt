@@ -23,8 +23,15 @@ interface PlaidApi {
     @GET("api/investments/holdings")
     suspend fun getHoldings(@Header("X-Plaid-Access-Token") accessToken: String): HoldingsResponse
 
-    @GET("api/investments/transactions")
-    suspend fun getInvestmentTransactions(@Header("X-Plaid-Access-Token") accessToken: String): InvestmentTransactionsResponse
+    // POST, not GET: the Edge Function matches on method as well as path, so a
+    // GET here fell through to its catch-all and 404'd, failing the whole sync
+    // after accounts and transactions had already been written. The date window
+    // is optional — an empty body makes the server default to the last two years.
+    @POST("api/investments/transactions")
+    suspend fun getInvestmentTransactions(
+        @Header("X-Plaid-Access-Token") accessToken: String,
+        @Body body: Map<String, String>
+    ): InvestmentTransactionsResponse
 
     @GET("api/liabilities")
     suspend fun getLiabilities(@Header("X-Plaid-Access-Token") accessToken: String): LiabilitiesResponse

@@ -345,7 +345,7 @@ class PlaidSyncService(context: Context) {
 
     suspend fun syncInvestmentTransactions(item: StoredPlaidItem): Int {
         val response = try {
-            plaidApi.getInvestmentTransactions(item.accessToken)
+            plaidApi.getInvestmentTransactions(item.accessToken, emptyMap())
         } catch (e: Exception) {
             if (isUnsupportedProduct(e)) return 0
             throw e
