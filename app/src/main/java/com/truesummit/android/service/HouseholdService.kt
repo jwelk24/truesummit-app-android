@@ -27,9 +27,11 @@ data class Household(
     val created_at: String
 )
 
+// No id: household_members is keyed by (household_id, user_id) and has no id
+// column, so requiring one made every decode throw and left the household
+// state permanently empty.
 @Serializable
 data class HouseholdMember(
-    @Serializable(with = UUIDSerializer::class) val id: UUID,
     @Serializable(with = UUIDSerializer::class) val household_id: UUID,
     @Serializable(with = UUIDSerializer::class) val user_id: UUID,
     val role: String,
