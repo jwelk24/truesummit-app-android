@@ -126,7 +126,7 @@ dependencies {
     implementation "com.google.android.libraries.identity.googleid:googleid:1.1.1"
 
     // Plaid
-    implementation 'com.plaid.link:sdk-core:5.5.2'
+    implementation 'com.plaid.link:sdk-core:5.5.4'
 
     // Room
     def room_version = "2.8.4"

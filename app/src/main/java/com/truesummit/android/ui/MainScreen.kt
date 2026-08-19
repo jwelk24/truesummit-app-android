@@ -3,6 +3,7 @@ package com.truesummit.android.ui
 import com.truesummit.android.ui.networth.PlaidConnectionsViewModel
 import com.plaid.link.configuration.LinkTokenConfiguration
 import com.plaid.link.result.LinkSuccess
+import com.plaid.link.result.LinkExit
 import com.plaid.link.OpenPlaidLink
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.truesummit.android.ui.transactions.viewmodel.TransactionsViewModel
@@ -97,11 +98,24 @@ fun MainScreen() {
     val plaidViewModel: PlaidConnectionsViewModel = viewModel()
     val pendingLinkToken by plaidViewModel.pendingLinkToken.collectAsState()
     val plaidLauncher = rememberLauncherForActivityResult(OpenPlaidLink()) { result ->
-        if (result is LinkSuccess) {
-            plaidViewModel.onLinkSuccess(
-                publicToken = result.publicToken,
-                institutionName = result.metadata.institution?.name
+        // Log every outcome, not just success. Silently ignoring the non-success
+        // branch is what made this take several attempts to diagnose: a link
+        // that consumed a Plaid connection still reported nothing to the app.
+        when (result) {
+            is LinkSuccess -> {
+                android.util.Log.w("PlaidLink", "result=LinkSuccess inst=${result.metadata.institution?.name}")
+                plaidViewModel.onLinkSuccess(
+                    publicToken = result.publicToken,
+                    institutionName = result.metadata.institution?.name
+                )
+            }
+            is LinkExit -> android.util.Log.w(
+                "PlaidLink",
+                "result=LinkExit err=${result.error?.errorCode} " +
+                    "displayMsg=${result.error?.displayMessage} " +
+                    "status=${result.metadata.status} inst=${result.metadata.institution?.name}"
             )
+            else -> android.util.Log.w("PlaidLink", "result=${result::class.java.name}")
         }
     }
     LaunchedEffect(pendingLinkToken) {

@@ -1,5 +1,6 @@
 package com.truesummit.android.ui.networth
 
+import android.util.Log
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+
+private const val TAG = "PlaidLink"
 
 class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(application) {
     private val storage = PlaidStorage(application)
@@ -59,8 +63,10 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
                         "platform" to "android"
                     )
                 )
+                Log.w(TAG, "link token created, launching Link")
                 _pendingLinkToken.value = response.linkToken
             } catch (e: Exception) {
+                Log.e(TAG, "link token request failed", e)
                 _linkError.value = "Could not start bank link: ${e.localizedMessage}"
             } finally {
                 _isLinkLoading.value = false
@@ -73,6 +79,7 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun onLinkSuccess(publicToken: String, institutionName: String?) {
+        Log.w(TAG, "onLinkSuccess from ${institutionName ?: "unknown institution"}")
         viewModelScope.launch {
             try {
                 // "publicToken", not "public_token": the Edge Function reads the
@@ -87,11 +94,20 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
                     institutionName = institutionName,
                     linkedAt = System.currentTimeMillis()
                 )
+                Log.w(TAG, "exchange ok, itemId=${exchange.itemId}; saving")
                 storage.saveItem(item)
+                Log.w(TAG, "item saved; stored count now ${storage.getAllItems().size}")
                 loadItems()
                 // Kick off an initial sync in the background
                 syncItem(item)
             } catch (e: Exception) {
+                // Retrofit's message is only "HTTP 400 Bad Request" — the Edge
+                // Function's reason lives in the response body, which is the
+                // one thing worth knowing when a link has already been spent.
+                if (e is HttpException) {
+                    Log.e(TAG, "exchange failed HTTP ${e.code()} body=${e.response()?.errorBody()?.string()}")
+                }
+                Log.e(TAG, "exchange/save failed", e)
                 _linkError.value = "Bank linked but sync failed: ${e.localizedMessage}"
             }
         }
@@ -105,9 +121,12 @@ class PlaidConnectionsViewModel(application: Application) : AndroidViewModel(app
         viewModelScope.launch {
             _syncingItemId.value = item.itemId
             try {
+                Log.w(TAG, "sync starting for ${item.itemId}")
                 syncService.syncAll(item)
+                Log.w(TAG, "sync finished for ${item.itemId}")
             } catch (e: Exception) {
                 // Sync errors are non-critical; item is already stored
+                Log.e(TAG, "sync failed for ${item.itemId}", e)
             } finally {
                 _syncingItemId.value = null
                 loadItems()
