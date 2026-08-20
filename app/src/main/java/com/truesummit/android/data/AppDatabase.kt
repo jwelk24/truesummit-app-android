@@ -1,6 +1,8 @@
 package com.truesummit.android.data
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
@@ -50,6 +52,25 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionAttachmentDao(): TransactionAttachmentDao
 
     companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        /**
+         * The one open handle to truesummit-db. Room's invalidation tracker is per-instance,
+         * so every reader and writer has to share this or a write through one handle will
+         * never wake the Flows collected off another.
+         */
+        fun getInstance(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java, "truesummit-db"
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .build()
+                    .also { INSTANCE = it }
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE transactions ADD COLUMN tags TEXT NOT NULL DEFAULT ''")

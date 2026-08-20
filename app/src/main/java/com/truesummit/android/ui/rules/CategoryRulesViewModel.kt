@@ -3,7 +3,6 @@ package com.truesummit.android.ui.rules
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.CategoryEntity
 import com.truesummit.android.data.entity.CategoryRuleEntity
@@ -13,10 +12,7 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 class CategoryRulesViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(
-        application,
-        AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
 
     val rules: StateFlow<List<CategoryRuleEntity>> = db.categoryRuleDao().getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

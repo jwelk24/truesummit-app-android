@@ -4,7 +4,6 @@ import com.truesummit.android.service.MoneyQueryService
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.service.AIInsightsService
 import com.truesummit.android.service.AiTurn
@@ -20,9 +19,7 @@ import java.util.*
 
 class AIInsightsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = Room.databaseBuilder(
-        application, AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
 
     private val ai = AIInsightsService(application)
 

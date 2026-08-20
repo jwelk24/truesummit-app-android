@@ -3,7 +3,6 @@ package com.truesummit.android.ui.budget.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.CategoryEntity
 import com.truesummit.android.data.entity.CategoryGroupEntity
@@ -35,10 +34,7 @@ data class BudgetUiState(
 )
 
 class BudgetViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(
-        application,
-        AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
     
     private val engine = BudgetEngine(application)
 
@@ -47,16 +43,26 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _yearMonth = combine(_selectedYear, _selectedMonth) { y, m -> Pair(y, m) }
 
+    /**
+     * Allocations have to be a Flow source of the combine below, not a one-shot read inside
+     * it — otherwise assigning money writes to the DB but nothing here re-emits and the
+     * category cards keep showing the old budget until the screen is rebuilt.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val _monthAllocations = _yearMonth.flatMapLatest { (year, month) ->
+        db.budgetDao().getAllocationsForYearMonth(year, month)
+            .map { allocs -> Triple(year, month, allocs) }
+    }
+
     val uiState: StateFlow<BudgetUiState> = combine(
         db.categoryDao().getGroups(),
         db.categoryDao().getCategories(),
         db.transactionDao().getAll(),
         db.plaidLinkDao().getAccountLinkCountFlow(),
-        _yearMonth
-    ) { groups, categories, transactions, plaidCount, yearMonth ->
-        val (year, month) = yearMonth
+        _monthAllocations
+    ) { groups, categories, transactions, plaidCount, monthAllocations ->
+        val (year, month, allocs) = monthAllocations
         val budgetMonth = engine.ensureMonth(year, month)
-        val allocs = db.budgetDao().getAllocationsForMonth(budgetMonth.id).first()
         val allocationMap = mutableMapOf<UUID, BigDecimal>()
         allocs.forEach { alloc ->
             alloc.categoryId?.let { allocationMap[it] = alloc.amount }

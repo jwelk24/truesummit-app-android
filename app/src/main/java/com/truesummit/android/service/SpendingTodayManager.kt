@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Build
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
-import androidx.room.Room
 import com.truesummit.android.R
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.ui.transactions.formatCurrency
@@ -31,7 +30,7 @@ object SpendingTodayManager {
     }
 
     private suspend fun compute(context: Context): DayStats {
-        val db = Room.databaseBuilder(context, AppDatabase::class.java, "truesummit-db").build()
+        val db = AppDatabase.getInstance(context)
         val calendar = Calendar.getInstance()
         val today = calendar.apply {
             set(Calendar.HOUR_OF_DAY, 0)

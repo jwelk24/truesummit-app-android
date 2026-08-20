@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.CategoryEntity
 import com.truesummit.android.service.BudgetEngine
@@ -85,8 +84,7 @@ object BudgetDrafter {
 }
 
 class BudgetDraftViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(application, AppDatabase::class.java, "truesummit-db")
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
     private val engine = BudgetEngine(application)
 
     data class DraftRow(

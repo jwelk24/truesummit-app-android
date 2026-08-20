@@ -1,7 +1,6 @@
 package com.truesummit.android.service
 
 import android.content.Context
-import androidx.room.Room
 import com.truesummit.android.billing.PremiumManager
 import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.data.AppDatabase
@@ -264,7 +263,7 @@ object SyncService {
         val household = HouseholdService.currentHousehold.value ?: return
         _isSyncing.value = true
         try {
-            val db = Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "truesummit-db").addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+            val db = AppDatabase.getInstance(context.applicationContext)
             val householdIdStr = household.id.toString().lowercase()
             val canWrite = HouseholdService.currentRole.value?.canWrite ?: false
 

@@ -17,7 +17,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.service.WrappedService
 import com.truesummit.android.service.WrappedStats
@@ -26,8 +25,7 @@ import kotlinx.coroutines.flow.*
 import java.util.*
 
 class WrappedViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(application, AppDatabase::class.java, "truesummit-db")
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
 
     val year = Calendar.getInstance().get(Calendar.YEAR)
 

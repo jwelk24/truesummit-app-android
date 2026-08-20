@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.service.MerchantLogoService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,11 +44,7 @@ private const val PREFS_PRIVACY = "truesummit_privacy"
 private const val KEY_LOCAL_ONLY = "local_only_mode"
 
 class PrivacyDataViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(
-        application, AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(
-        AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4
-    ).build()
+    private val db = AppDatabase.getInstance(application)
 
     private val prefs = application.getSharedPreferences(PREFS_PRIVACY, Context.MODE_PRIVATE)
 

@@ -3,7 +3,6 @@ package com.truesummit.android.service
 import android.content.Context
 import android.util.Log
 import androidx.glance.appwidget.updateAll
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.widget.BudgetWidget
 import com.truesummit.android.widget.NetWorthWidget
@@ -43,13 +42,7 @@ object SurfaceRefreshCoordinator {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         scope.launch {
-            val db = Room.databaseBuilder(app, AppDatabase::class.java, "truesummit-db")
-                .addMigrations(
-                    AppDatabase.MIGRATION_1_2,
-                    AppDatabase.MIGRATION_2_3,
-                    AppDatabase.MIGRATION_3_4
-                )
-                .build()
+            val db = AppDatabase.getInstance(app)
 
             // Any of these changing can move a number on a widget or the watch.
             combine(

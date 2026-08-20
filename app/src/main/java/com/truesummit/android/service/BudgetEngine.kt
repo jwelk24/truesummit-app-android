@@ -1,7 +1,6 @@
 package com.truesummit.android.service
 
 import android.content.Context
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.*
 import com.truesummit.android.data.model.AccountType
@@ -13,10 +12,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class BudgetEngine(context: Context) {
-    private val db = Room.databaseBuilder(
-        context.applicationContext,
-        AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(context.applicationContext)
 
     // MARK: - Pure calculations
 

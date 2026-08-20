@@ -3,7 +3,6 @@ package com.truesummit.android.ui.networth.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import com.truesummit.android.billing.PremiumManager
 import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.data.AppDatabase
@@ -43,10 +42,7 @@ data class NetWorthUiState(
 )
 
 class NetWorthViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(
-        application,
-        AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
 
     private val _timeRange = MutableStateFlow(NetWorthTimeRange.MONTH_3)
 

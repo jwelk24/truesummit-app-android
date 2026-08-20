@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.AccountEntity
 import com.truesummit.android.data.entity.BudgetAllocationEntity
@@ -47,9 +46,7 @@ import java.util.*
 
 class OnboardingWizardViewModel(application: Application) : AndroidViewModel(application) {
     private val db by lazy {
-        Room.databaseBuilder(application, AppDatabase::class.java, "truesummit-db")
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
-            .build()
+        AppDatabase.getInstance(application)
     }
 
     fun seedSampleData() {

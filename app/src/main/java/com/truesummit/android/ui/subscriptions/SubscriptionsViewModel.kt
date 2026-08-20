@@ -3,7 +3,6 @@ package com.truesummit.android.ui.subscriptions
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.ScheduledItemEntity
 import com.truesummit.android.data.model.ScheduledKind
@@ -14,10 +13,7 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 class SubscriptionsViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = Room.databaseBuilder(
-        application,
-        AppDatabase::class.java, "truesummit-db"
-    ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+    private val db = AppDatabase.getInstance(application)
 
     private val _detected = MutableStateFlow<List<DetectedSubscription>>(emptyList())
     val detected: StateFlow<List<DetectedSubscription>> = _detected

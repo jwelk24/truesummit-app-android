@@ -1,7 +1,6 @@
 package com.truesummit.android.service
 
 import android.content.Context
-import androidx.room.Room
 import com.truesummit.android.billing.PremiumManager
 import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.data.AppDatabase
@@ -109,9 +108,7 @@ object RuleEngine {
 
     suspend fun backfill(context: Context): Int {
         if (!rulesEnabled()) return 0
-        val db = Room.databaseBuilder(
-            context.applicationContext, AppDatabase::class.java, "truesummit-db"
-        ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4).build()
+        val db = AppDatabase.getInstance(context.applicationContext)
         val rules = db.categoryRuleDao().getEnabledRules()
         val transactions = db.transactionDao().getAll().first()
         var hits = 0

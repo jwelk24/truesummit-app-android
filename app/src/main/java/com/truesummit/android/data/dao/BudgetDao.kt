@@ -26,6 +26,13 @@ interface BudgetDao {
     @Query("SELECT * FROM budget_allocations WHERE monthId = :monthId")
     fun getAllocationsForMonth(monthId: UUID): Flow<List<BudgetAllocationEntity>>
 
+    @Query(
+        "SELECT a.* FROM budget_allocations a " +
+        "INNER JOIN budget_months m ON a.monthId = m.id " +
+        "WHERE m.year = :year AND m.month = :month"
+    )
+    fun getAllocationsForYearMonth(year: Int, month: Int): Flow<List<BudgetAllocationEntity>>
+
     @Query("SELECT * FROM budget_allocations WHERE monthId = :monthId AND categoryId = :categoryId")
     suspend fun getAllocation(monthId: UUID, categoryId: UUID): BudgetAllocationEntity?
 

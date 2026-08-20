@@ -1,7 +1,6 @@
 package com.truesummit.android.widget
 
 import android.content.Context
-import androidx.room.Room
 import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.model.AccountType
 import com.truesummit.android.service.BudgetEngine
@@ -44,7 +43,7 @@ data class TrueSummitSnapshot(
 
     companion object {
         suspend fun build(context: Context): TrueSummitSnapshot {
-            val db = Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "truesummit-db").build()
+            val db = AppDatabase.getInstance(context.applicationContext)
             val accounts = db.accountDao().getAll().first()
             val txs = db.transactionDao().getAll().first()
             val scheduled = db.scheduledItemDao().getAll().first()
