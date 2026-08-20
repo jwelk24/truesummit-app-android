@@ -164,6 +164,30 @@ class PrivacyDataViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    private val _seedResult = MutableStateFlow<String?>(null)
+    val seedResult: StateFlow<String?> = _seedResult
+    fun dismissSeedResult() { _seedResult.value = null }
+
+    /**
+     * Fills an empty install with the six-month sample budget.
+     *
+     * The onboarding wizard offers this too, but only on its first step and
+     * only below the fold — so once a user is past the wizard there was no way
+     * back to it. Screenshot and demo runs need a trigger that does not depend
+     * on onboarding state.
+     */
+    fun loadSampleData() {
+        viewModelScope.launch {
+            _seedResult.value = try {
+                val engine = BudgetEngine(getApplication())
+                engine.seedIfNeeded()
+                "Sample data loaded. Pull down or reopen a tab to see it."
+            } catch (e: Exception) {
+                "Could not load sample data: ${e.message}"
+            }
+        }
+    }
+
     private val _eraseLocalResult = MutableStateFlow<String?>(null)
     val eraseLocalResult: StateFlow<String?> = _eraseLocalResult
     fun dismissEraseLocalResult() { _eraseLocalResult.value = null }
@@ -197,6 +221,7 @@ fun PrivacyDataScreen(
     var showEraseDialog by remember { mutableStateOf(false) }
     var showEraseLocalDialog by remember { mutableStateOf(false) }
     val eraseLocalResult by viewModel.eraseLocalResult.collectAsState()
+    val seedResult by viewModel.seedResult.collectAsState()
     var exportJson by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var merchantLogosEnabled by remember { mutableStateOf(MerchantLogoService.isEnabled(context)) }
@@ -274,6 +299,24 @@ fun PrivacyDataScreen(
                 if (importResult != null) {
                     Text(
                         importResult!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 72.dp, bottom = 8.dp)
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text("Load Sample Data") },
+                    supportingContent = { Text("Fills this device with a six-month example budget. Only runs on an empty install — erase local data first to re-run it.") },
+                    leadingContent = { Icon(Icons.Default.Dataset, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth().clickable { viewModel.loadSampleData() }
+                )
+                if (seedResult != null) {
+                    Text(
+                        seedResult!!,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 72.dp, bottom = 8.dp)

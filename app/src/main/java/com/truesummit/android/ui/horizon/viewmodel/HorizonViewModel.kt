@@ -65,10 +65,16 @@ class HorizonViewModel(application: Application) : AndroidViewModel(application)
         val lowest = points.minOfOrNull { it.runningBalance } ?: startingBalance
         val last = points.lastOrNull()?.runningBalance ?: startingBalance
 
+        // The screen labels this row "90-Day Projected", but horizonDays is the
+        // tier cap — 30 on Pro, 365 on Premium — so the figure was the balance
+        // at the end of whatever window the tier allowed, never at 90 days.
+        // Read the balance at day 90, clamped to the horizon we actually built.
+        val projected = forecastResult.getBalance(minOf(90, horizonDays)) ?: last
+
         HorizonUiState(
             startingBalance = startingBalance,
             lowestProjected = lowest,
-            projected90Day = last,
+            projected90Day = projected,
             pendingItems = pending,
             projectionPoints = points,
             forecastResult = forecastResult

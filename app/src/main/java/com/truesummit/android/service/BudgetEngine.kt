@@ -5,13 +5,16 @@ import com.truesummit.android.data.AppDatabase
 import com.truesummit.android.data.entity.*
 import com.truesummit.android.data.model.AccountType
 import com.truesummit.android.data.model.GoalType
+import com.truesummit.android.data.model.LiabilityKind
 import com.truesummit.android.data.model.ScheduledKind
+import com.truesummit.android.ui.budget.CategoryBarColor
 import kotlinx.coroutines.flow.first
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
 class BudgetEngine(context: Context) {
+    private val appContext = context.applicationContext
     private val db = AppDatabase.getInstance(context.applicationContext)
 
     // MARK: - Pure calculations
@@ -500,17 +503,57 @@ class BudgetEngine(context: Context) {
         if (reseed) seedIfNeeded()
     }
 
+    /**
+     * Everything the month-by-month seeding needs to refer back to.
+     *
+     * The seed used to be one function holding all of this as locals. It grew
+     * past the JVM's 64KB per-method limit, so the stages are separate methods
+     * now and pass this between them.
+     */
+    private data class SeedRefs(
+        val checking: AccountEntity,
+        val savings: AccountEntity,
+        val creditCard: AccountEntity,
+        val brokerage: AccountEntity,
+        val retirement: AccountEntity,
+        val studentLoan: AccountEntity,
+        val housing: CategoryEntity,
+        val utilities: CategoryEntity,
+        val groceries: CategoryEntity,
+        val transport: CategoryEntity,
+        val insurance: CategoryEntity,
+        val dining: CategoryEntity,
+        val subscriptions: CategoryEntity,
+        val personalCare: CategoryEntity,
+        val travel: CategoryEntity,
+        val gifts: CategoryEntity,
+        val debtRepay: CategoryEntity,
+        val savingsInv: CategoryEntity,
+        val japanTrip: CategoryEntity,
+        val downPayment: CategoryEntity,
+        val creditCardCat: CategoryEntity
+    )
+
     suspend fun seedIfNeeded() {
         val existing = db.accountDao().getAll().first()
         if (existing.isNotEmpty()) return
 
+        val refs = seedAccountsAndCategories()
+        seedGoalsAndSchedule(refs)
+        seedMonthlyHistory(refs)
+        seedInvestments(refs.brokerage, refs.retirement)
+        seedLiabilities(refs.creditCard, refs.studentLoan)
+    }
+
+    private suspend fun seedAccountsAndCategories(): SeedRefs {
         // ── Accounts ────────────────────────────────────────────────────────
         val checking    = AccountEntity(name = "Chase Checking",  type = AccountType.CHECKING,    balance = BigDecimal("4820"),   currencyCode = "USD")
         val savings     = AccountEntity(name = "High-Yield Savings", type = AccountType.SAVINGS,  balance = BigDecimal("12400"),  currencyCode = "USD")
         val creditCard  = AccountEntity(name = "Visa Signature",  type = AccountType.CREDIT_CARD, balance = BigDecimal("-680"),   currencyCode = "USD")
         val brokerage   = AccountEntity(name = "Brokerage",       type = AccountType.INVESTMENT,  balance = BigDecimal("18500"),  currencyCode = "USD")
         val retirement  = AccountEntity(name = "401(k)",          type = AccountType.RETIREMENT,  balance = BigDecimal("54200"),  currencyCode = "USD")
-        for (it in listOf(checking, savings, creditCard, brokerage, retirement)) {
+        val studentLoan = AccountEntity(name = "Student Loan",    type = AccountType.LOAN,        balance = BigDecimal("-18300"), currencyCode = "USD")
+        for (it in listOf(checking, savings, creditCard, brokerage, retirement, studentLoan)) {
             db.accountDao().insert(it)
         }
 
@@ -544,174 +587,491 @@ class BudgetEngine(context: Context) {
             db.categoryDao().insertCategory(it)
         }
 
+        // Pin a bar colour per category. Without one, the colour comes from a
+        // hash of the category name over a four-colour cycle that includes
+        // rose — so roughly a quarter of the categories drew a red bar with no
+        // overspend behind it, which reads as a warning it isn't.
+        val barColors = listOf(
+            housing       to 0xFF0A84FF, // blue
+            utilities     to 0xFF64D2FF, // cyan
+            groceries     to 0xFF34C759, // green
+            transport     to 0xFF5E5CE6, // indigo
+            insurance     to 0xFF9B8EC4, // lavender
+            dining        to 0xFF4ECDC4, // teal
+            subscriptions to 0xFFBF5AF2, // purple
+            personalCare  to 0xFF66D4CF, // mint
+            travel        to 0xFF64D2FF, // cyan
+            gifts         to 0xFF9B8EC4, // lavender
+            debtRepay     to 0xFF4ECDC4, // teal
+            savingsInv    to 0xFF34C759, // green
+            japanTrip     to 0xFF0A84FF, // blue
+            downPayment   to 0xFF5E5CE6, // indigo
+            creditCardCat to 0xFF9B8EC4  // lavender
+        )
+        for ((category, argb) in barColors) {
+            CategoryBarColor.setColor(appContext, category.id, androidx.compose.ui.graphics.Color(argb))
+        }
+
+        return SeedRefs(
+            checking, savings, creditCard, brokerage, retirement, studentLoan,
+            housing, utilities, groceries, transport, insurance, dining, subscriptions,
+            personalCare, travel, gifts, debtRepay, savingsInv, japanTrip, downPayment, creditCardCat
+        )
+    }
+
+    private suspend fun seedGoalsAndSchedule(r: SeedRefs) {
         // ── Goals ────────────────────────────────────────────────────────────
-        val targetJapan = date(2026, 10, 1)
-        val targetDown  = date(2028, 6, 1)
-        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("5000"),  targetDate = targetJapan, categoryId = japanTrip.id))
-        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("60000"), targetDate = targetDown,  categoryId = downPayment.id))
-        db.goalDao().insert(GoalEntity(type = GoalType.SAVINGS_TARGET,  targetAmount = BigDecimal("25000"), targetDate = null,        categoryId = savingsInv.id))
+        // Relative to today so the sample never ages into the past.
+        val targetJapan = monthsFromNow(14)
+        val targetDown  = monthsFromNow(34)
+        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("5000"),  targetDate = targetJapan, categoryId = r.japanTrip.id))
+        db.goalDao().insert(GoalEntity(type = GoalType.BY_DATE_TARGET,  targetAmount = BigDecimal("60000"), targetDate = targetDown,  categoryId = r.downPayment.id))
+        db.goalDao().insert(GoalEntity(type = GoalType.SAVINGS_TARGET,  targetAmount = BigDecimal("25000"), targetDate = null,        categoryId = r.savingsInv.id))
 
         // ── Scheduled bills ──────────────────────────────────────────────────
-        val nextMonth1st = date(2026, 8, 1)
-        val nextMonth15th = date(2026, 8, 15)
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Rent",         amount = BigDecimal("1850"), nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = housing.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Electric",     amount = BigDecimal("95"),   nextDate = nextMonth15th, intervalDays = 30,  accountId = checking.id, categoryId = utilities.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Internet",     amount = BigDecimal("65"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = utilities.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Spotify",      amount = BigDecimal("11"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = subscriptions.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Netflix",      amount = BigDecimal("15"),   nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = subscriptions.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.BILL, name = "Car Insurance",amount = BigDecimal("142"),  nextDate = nextMonth1st,  intervalDays = 30,  accountId = checking.id, categoryId = insurance.id))
-        db.scheduledItemDao().insert(ScheduledItemEntity(kind = ScheduledKind.PAYCHECK, name = "Paycheck",   amount = BigDecimal("3200"), nextDate = date(2026, 8, 1), intervalDays = 14, accountId = checking.id, categoryId = null))
+        // Outflows are stored negative and paychecks positive — the forecaster
+        // just sums item.amount, and the add-bill dialog negates what the user
+        // types. Seeding bills as positive made every one of them *raise* the
+        // projected balance.
+        val on1st  = nextOccurrenceOfDay(1)
+        val on5th  = nextOccurrenceOfDay(5)
+        val on10th = nextOccurrenceOfDay(10)
+        val on15th = nextOccurrenceOfDay(15)
 
-        // ── 6 months of budget months + allocations + transactions ───────────
+        suspend fun bill(name: String, amount: String, on: Date, categoryId: java.util.UUID?, kind: ScheduledKind = ScheduledKind.BILL) =
+            db.scheduledItemDao().insert(
+                ScheduledItemEntity(
+                    kind = kind, name = name, amount = BigDecimal(amount).negate(),
+                    nextDate = on, intervalDays = 30, accountId = r.checking.id, categoryId = categoryId
+                )
+            )
+
+        bill("Rent",          "1850", on1st,  r.housing.id)
+        bill("Electric",      "95",   on15th, r.utilities.id)
+        bill("Internet",      "65",   on1st,  r.utilities.id)
+        bill("Spotify",       "11",   on1st,  r.subscriptions.id, ScheduledKind.SUBSCRIPTION)
+        bill("Netflix",       "15",   on1st,  r.subscriptions.id, ScheduledKind.SUBSCRIPTION)
+        bill("Car Insurance", "142",  on1st,  r.insurance.id)
+
+        // Recurring costs the old seed left out of the forecast entirely. With
+        // only six bills scheduled against a full salary, the projection
+        // implied saving over $4,000 a month.
+        bill("Student Loan",  "300",  on10th, r.debtRepay.id)
+        bill("Groceries",     "430",  on5th,  r.groceries.id)
+        bill("Gas",           "100",  on5th,  r.transport.id)
+        bill("Dining Out",    "300",  on10th, r.dining.id)
+        bill("Personal Care", "120",  on15th, r.personalCare.id)
+
+        db.scheduledItemDao().insert(
+            ScheduledItemEntity(
+                kind = ScheduledKind.PAYCHECK, name = "Paycheck", amount = BigDecimal("3200"),
+                nextDate = on1st, intervalDays = 14, accountId = r.checking.id, categoryId = null
+            )
+        )
+    }
+
+    private suspend fun seedMonthlyHistory(r: SeedRefs) {
         val cal = Calendar.getInstance()
         val curYear  = cal.get(Calendar.YEAR)
         val curMonth = cal.get(Calendar.MONTH) + 1
 
-        data class MonthSpec(val year: Int, val month: Int)
-        fun prevMonths(n: Int): List<MonthSpec> = (n downTo 0).map { offset ->
+        val months = (5 downTo 0).map { offset ->
             val c = Calendar.getInstance()
             c.add(Calendar.MONTH, -offset)
-            MonthSpec(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1)
+            c.get(Calendar.YEAR) to (c.get(Calendar.MONTH) + 1)
         }
-        val months = prevMonths(5) // 5 months ago … current
 
         // Income varies slightly each month (bi-weekly pay = 2 or 3 cheques)
-        val incomes = listOf(6400, 6400, 9600, 6400, 6400, 6400)
+        val incomes = listOf(7200, 7200, 10800, 7200, 7200, 7200)
 
         for ((idx, ms) in months.withIndex()) {
-            val isCurrent = (ms.year == curYear && ms.month == curMonth)
-            val income = BigDecimal(incomes[idx])
+            val (year, month) = ms
+            val isCurrent = (year == curYear && month == curMonth)
 
-            val bm = BudgetMonthEntity(year = ms.year, month = ms.month, carryover = BigDecimal.ZERO)
-            db.budgetDao().insertMonth(bm)
+            // Reuse the month row if one already exists. Merely opening the
+            // Budget tab calls ensureMonth() for the current month, so a blind
+            // insert here left two rows for it — and getMonth() returns the
+            // empty one, so the current month rendered with nothing assigned.
+            val bm = db.budgetDao().getMonth(year, month)
+                ?: BudgetMonthEntity(year = year, month = month, carryover = BigDecimal.ZERO)
+                    .also { db.budgetDao().insertMonth(it) }
 
-            suspend fun alloc(amount: Int, catId: java.util.UUID) =
-                db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal(amount), categoryId = catId, monthId = bm.id))
+            seedAllocations(r, bm, idx)
+            seedTransactions(r, year, month, idx, isCurrent, BigDecimal(incomes[idx]))
+            seedSnapshots(r, year, month, idx, isCurrent)
+        }
+    }
 
-            alloc(1850, housing.id)
-            alloc(160,  utilities.id)
-            alloc(420,  groceries.id)
-            alloc(200,  transport.id)
-            alloc(142,  insurance.id)
-            alloc(280,  dining.id)
-            alloc(41,   subscriptions.id)
-            alloc(120,  personalCare.id)
-            alloc(if (idx == 2) 1400 else 50, travel.id)   // big travel month (month 3)
-            alloc(60,   gifts.id)
-            alloc(300,  debtRepay.id)
-            alloc(500,  savingsInv.id)
-            alloc(400,  japanTrip.id)
-            alloc(300,  downPayment.id)
-            alloc(680,  creditCardCat.id)
+    private suspend fun seedAllocations(r: SeedRefs, bm: BudgetMonthEntity, idx: Int) {
+        suspend fun alloc(amount: Int, catId: java.util.UUID) =
+            db.budgetDao().insertAllocation(BudgetAllocationEntity(amount = BigDecimal(amount), categoryId = catId, monthId = bm.id))
 
-            // ── Transactions ────────────────────────────────────────────────
-            fun tx(day: Int, amount: String, merchant: String, catId: java.util.UUID?, acctId: java.util.UUID = checking.id, pfcPrimary: String? = null) =
-                TransactionEntity(date = date(ms.year, ms.month, day), amount = BigDecimal(amount), merchant = merchant,
-                    memo = null, cleared = true, flagColor = null, pfcPrimary = pfcPrimary, accountId = acctId, categoryId = catId)
+        // Each allocation sits comfortably above what the month actually
+        // spends. Budgets funded to the exact dollar left every category
+        // bar pinned at 100% — technically on budget, but rendered in the
+        // same red as an overspend.
+        alloc(1850, r.housing.id)
+        alloc(210,  r.utilities.id)
+        alloc(520,  r.groceries.id)
+        alloc(260,  r.transport.id)
+        alloc(142,  r.insurance.id)
+        alloc(360,  r.dining.id)
+        alloc(90,   r.subscriptions.id)
+        alloc(170,  r.personalCare.id)
+        alloc(if (idx == 2) 1400 else 130, r.travel.id)   // big travel month (month 3)
+        alloc(90,   r.gifts.id)
+        alloc(300,  r.debtRepay.id)
+        alloc(500,  r.savingsInv.id)
+        alloc(400,  r.japanTrip.id)
+        alloc(300,  r.downPayment.id)
+        alloc(680,  r.creditCardCat.id)
+    }
 
-            // Income (1st and 15th; month[2] gets an extra 15th-ish paycheck)
-            db.transactionDao().insert(tx(1,  income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, checking.id, "Income"))
-            db.transactionDao().insert(tx(15, income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, checking.id, "Income"))
-            if (idx == 2) db.transactionDao().insert(tx(28, "3200", "Acme Corp Bonus",  null, checking.id, "Income"))
+    private suspend fun seedTransactions(
+        r: SeedRefs,
+        year: Int,
+        month: Int,
+        idx: Int,
+        isCurrent: Boolean,
+        income: BigDecimal
+    ) {
+        fun tx(day: Int, amount: String, merchant: String, catId: java.util.UUID?, acctId: java.util.UUID = r.checking.id, pfcPrimary: String? = null) =
+            TransactionEntity(date = date(year, month, day), amount = BigDecimal(amount), merchant = merchant,
+                memo = null, cleared = true, flagColor = null, pfcPrimary = pfcPrimary, accountId = acctId, categoryId = catId)
 
-            // Housing
-            db.transactionDao().insert(tx(1, "-1850", "Elm Street Apartments", housing.id))
+        // The current month is only partway through, so it gets a partial
+        // set of spending. Seeding a whole month of outflows into it made
+        // every category read as fully spent, and the pace projection
+        // (spend-to-date scaled to month length) then flagged them all.
+        val lastSpendDay = if (isCurrent) 10 else 31
 
-            // Utilities (vary a little)
-            val elec = listOf(88, 95, 102, 91, 97, 89)
-            db.transactionDao().insert(tx(12, "-${elec[idx]}", "City Power Co", utilities.id))
-            db.transactionDao().insert(tx(3,  "-65",  "Xfinity Internet",   utilities.id))
-            db.transactionDao().insert(tx(10, "-14",  "Water Utility",      utilities.id))
+        suspend fun post(day: Int, amount: String, merchant: String, catId: java.util.UUID?, acctId: java.util.UUID = r.checking.id, pfcPrimary: String? = null) {
+            if (day > lastSpendDay) return
+            db.transactionDao().insert(tx(day, amount, merchant, catId, acctId, pfcPrimary))
+        }
 
-            // Groceries (3–4 trips)
-            val grocTotal = listOf(390, 418, 445, 402, 411, 428)
-            db.transactionDao().insert(tx(3,  "-${(grocTotal[idx] * 0.30).toInt()}", "Whole Foods",        groceries.id))
-            db.transactionDao().insert(tx(9,  "-${(grocTotal[idx] * 0.25).toInt()}", "Trader Joe's",       groceries.id))
-            db.transactionDao().insert(tx(17, "-${(grocTotal[idx] * 0.26).toInt()}", "Kroger",             groceries.id))
-            db.transactionDao().insert(tx(24, "-${(grocTotal[idx] * 0.19).toInt()}", "Costco",             groceries.id))
+        // Income is never withheld — clipping a paycheck would leave the
+        // month short of what its categories are already assigned.
+        db.transactionDao().insert(tx(1,  income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, r.checking.id, "Income"))
+        db.transactionDao().insert(tx(15, income.divide(BigDecimal(2)).toPlainString(), "Acme Corp Payroll", null, r.checking.id, "Income"))
+        if (idx == 2) db.transactionDao().insert(tx(28, "3600", "Acme Corp Bonus",  null, r.checking.id, "Income"))
 
-            // Transportation
-            db.transactionDao().insert(tx(5,  "-52",  "Shell Gas",          transport.id))
-            db.transactionDao().insert(tx(18, "-48",  "Circle K",           transport.id))
-            if (idx % 2 == 0) db.transactionDao().insert(tx(22, "-35", "Lyft",            transport.id))
+        // Fixed bills that consume their whole category in one payment.
+        // In the current month they're still upcoming, which keeps those
+        // categories showing as funded rather than spent to the dollar.
+        if (!isCurrent) {
+            db.transactionDao().insert(tx(1,  "-1850", "Elm Street Apartments", r.housing.id))
+            db.transactionDao().insert(tx(1,  "-142",  "GEICO",                 r.insurance.id))
+            db.transactionDao().insert(tx(10, "-300",  "Navient Student Loan",  r.debtRepay.id))
+            db.transactionDao().insert(tx(20, "-680",  "Visa Signature Payment", r.creditCardCat.id))
+            // Tagged as a transfer so the review inbox doesn't ask for a
+            // category on the receiving side of a payment already
+            // categorised on the checking side.
+            db.transactionDao().insert(tx(20, "680",   "Credit Card Payment",   null, r.creditCard.id, "TRANSFER_IN"))
+        }
 
-            // Insurance
-            db.transactionDao().insert(tx(1, "-142",  "GEICO",              insurance.id))
+        // Utilities (vary a little)
+        val elec = listOf(88, 95, 102, 91, 97, 89)
+        post(12, "-${elec[idx]}", "City Power Co", r.utilities.id)
+        post(3,  "-65",  "Xfinity Internet",   r.utilities.id)
+        post(10, "-14",  "Water Utility",      r.utilities.id)
 
-            // Dining
-            val diningMerchants = listOf(
-                listOf("-28" to "Chipotle", "-62" to "Nobu", "-18" to "Starbucks", "-24" to "Shake Shack"),
-                listOf("-35" to "Sushi Nakazawa", "-22" to "Dunkin", "-31" to "The Spotted Pig", "-19" to "Sweetgreen"),
-                listOf("-44" to "Eleven Madison Park", "-18" to "Blue Bottle Coffee", "-29" to "Joe's Pizza", "-38" to "Momofuku"),
-                listOf("-26" to "Tacos El Pastor", "-15" to "Starbucks", "-42" to "Gramercy Tavern", "-27" to "Dig"),
-                listOf("-33" to "Emily Restaurant", "-21" to "Think Coffee", "-25" to "Shake Shack", "-30" to "Cote"),
-                listOf("-29" to "Los Tacos No.1", "-17" to "La Colombe", "-48" to "Le Bernardin", "-22" to "Sweetgreen")
-            )
-            diningMerchants[idx].forEachIndexed { i, (amt, name) ->
-                db.transactionDao().insert(tx(6 + i * 5, amt, name, dining.id, creditCard.id))
-            }
+        // Groceries (3–4 trips)
+        val grocTotal = listOf(390, 418, 445, 402, 411, 428)
+        post(3,  "-${(grocTotal[idx] * 0.30).toInt()}", "Whole Foods",  r.groceries.id)
+        post(9,  "-${(grocTotal[idx] * 0.25).toInt()}", "Trader Joe's", r.groceries.id)
+        post(17, "-${(grocTotal[idx] * 0.26).toInt()}", "Kroger",       r.groceries.id)
+        post(24, "-${(grocTotal[idx] * 0.19).toInt()}", "Costco",       r.groceries.id)
 
-            // Subscriptions
-            db.transactionDao().insert(tx(1,  "-11",  "Spotify",           subscriptions.id))
-            db.transactionDao().insert(tx(1,  "-15",  "Netflix",           subscriptions.id))
-            db.transactionDao().insert(tx(5,  "-10",  "Apple iCloud+",     subscriptions.id))
-            if (idx == 0 || idx == 3) db.transactionDao().insert(tx(8, "-5", "NYT Digital", subscriptions.id))
+        // Transportation
+        post(5,  "-52",  "Shell Gas",          r.transport.id)
+        post(18, "-48",  "Circle K",           r.transport.id)
+        if (idx % 2 == 0) post(22, "-35", "Lyft", r.transport.id)
 
-            // Personal care / clothing
-            val pcMerchants = listOf(
-                listOf("-65" to "Warby Parker", "-38" to "CVS Pharmacy"),
-                listOf("-22" to "Target Beauty", "-55" to "Uniqlo"),
-                listOf("-80" to "Nordstrom Rack", "-19" to "Walgreens"),
-                listOf("-45" to "Aesop", "-28" to "Target"),
-                listOf("-110" to "Allbirds", "-15" to "CVS Pharmacy"),
-                listOf("-35" to "Glossier", "-42" to "H&M")
-            )
-            pcMerchants[idx].forEach { (amt, name) ->
-                db.transactionDao().insert(tx(14, amt, name, personalCare.id, creditCard.id))
-            }
+        // Dining
+        val diningMerchants = listOf(
+            listOf("-28" to "Chipotle", "-62" to "Nobu", "-18" to "Starbucks", "-24" to "Shake Shack"),
+            listOf("-35" to "Sushi Nakazawa", "-22" to "Dunkin", "-31" to "The Spotted Pig", "-19" to "Sweetgreen"),
+            listOf("-44" to "Eleven Madison Park", "-18" to "Blue Bottle Coffee", "-29" to "Joe's Pizza", "-38" to "Momofuku"),
+            listOf("-26" to "Tacos El Pastor", "-15" to "Starbucks", "-42" to "Gramercy Tavern", "-27" to "Dig"),
+            listOf("-33" to "Emily Restaurant", "-21" to "Think Coffee", "-25" to "Shake Shack", "-30" to "Cote"),
+            listOf("-29" to "Los Tacos No.1", "-17" to "La Colombe", "-48" to "Le Bernardin", "-22" to "Sweetgreen")
+        )
+        diningMerchants[idx].forEachIndexed { i, (amt, name) ->
+            post(6 + i * 5, amt, name, r.dining.id, r.creditCard.id)
+        }
 
-            // Travel (month 2 = big trip)
-            if (idx == 2) {
-                db.transactionDao().insert(tx(8,  "-620",  "Delta Airlines",  travel.id))
-                db.transactionDao().insert(tx(9,  "-380",  "Marriott Miami",  travel.id))
-                db.transactionDao().insert(tx(10, "-95",   "Hertz Car Rental",travel.id))
-                db.transactionDao().insert(tx(11, "-68",   "Miami Beach Rest.",travel.id, creditCard.id))
-            } else {
-                db.transactionDao().insert(tx(20, "-${listOf(0,45,0,38,0,55)[idx]}", "Uber", travel.id))
-            }
+        // Subscriptions
+        post(1,  "-11",  "Spotify",       r.subscriptions.id)
+        post(1,  "-15",  "Netflix",       r.subscriptions.id)
+        post(5,  "-10",  "Apple iCloud+", r.subscriptions.id)
+        if (idx == 0 || idx == 3) post(8, "-5", "NYT Digital", r.subscriptions.id)
 
-            // Gifts / donations
-            if (idx % 3 == 0) db.transactionDao().insert(tx(25, "-50", "Charity: Water", gifts.id))
-            if (idx == 1)     db.transactionDao().insert(tx(20, "-80", "Amazon (gift)",  gifts.id))
+        // Personal care / clothing
+        val pcMerchants = listOf(
+            listOf("-65" to "Warby Parker", "-38" to "CVS Pharmacy"),
+            listOf("-22" to "Target Beauty", "-55" to "Uniqlo"),
+            listOf("-80" to "Nordstrom Rack", "-19" to "Walgreens"),
+            listOf("-45" to "Aesop", "-28" to "Target"),
+            listOf("-110" to "Allbirds", "-15" to "CVS Pharmacy"),
+            listOf("-35" to "Glossier", "-42" to "H&M")
+        )
+        pcMerchants[idx].forEach { (amt, name) ->
+            post(14, amt, name, r.personalCare.id, r.creditCard.id)
+        }
 
-            // Debt repayment (student loan)
-            db.transactionDao().insert(tx(10, "-300", "Navient Student Loan", debtRepay.id))
+        // Travel (month 2 = big trip)
+        if (idx == 2) {
+            post(8,  "-620",  "Delta Airlines",   r.travel.id)
+            post(9,  "-380",  "Marriott Miami",   r.travel.id)
+            post(10, "-95",   "Hertz Car Rental", r.travel.id)
+            post(11, "-68",   "Miami Beach Rest.", r.travel.id, r.creditCard.id)
+        } else {
+            // Months with no trip get no travel row at all — the old list
+            // carried zeros, which posted $0.00 transactions.
+            val fare = listOf(0, 45, 0, 38, 0, 55)[idx]
+            if (fare > 0) post(20, "-$fare", "Uber", r.travel.id)
+        }
 
-            // Savings transfer
-            db.transactionDao().insert(tx(2,  "-500", "Transfer to Savings", savingsInv.id))
-            db.transactionDao().insert(tx(2,  "500",  "Transfer from Checking", savingsInv.id, savings.id))
+        // Gifts / donations
+        if (idx % 3 == 0) post(25, "-50", "Charity: Water", r.gifts.id)
+        if (idx == 1)     post(20, "-80", "Amazon (gift)",  r.gifts.id)
 
-            // Goal contributions
-            db.transactionDao().insert(tx(3, "-400", "Japan Trip Fund", japanTrip.id))
-            db.transactionDao().insert(tx(3, "-300", "Down Payment Fund", downPayment.id))
+        // Savings transfer
+        post(2,  "-500", "Transfer to Savings", r.savingsInv.id)
+        post(2,  "500",  "Transfer from Checking", r.savingsInv.id, r.savings.id, "TRANSFER_IN")
 
-            // Credit card payment
-            db.transactionDao().insert(tx(20, "-680", "Visa Signature Payment", creditCardCat.id))
-            db.transactionDao().insert(tx(20, "680",  "Credit Card Payment",    null, creditCard.id))
+        // Goal contributions
+        post(3, "-400", "Japan Trip Fund",   r.japanTrip.id)
+        post(3, "-300", "Down Payment Fund", r.downPayment.id)
+    }
 
-            // ── End-of-month balance snapshots ───────────────────────────────
-            if (!isCurrent) {
-                val checkingBal = BigDecimal(listOf(3100, 3350, 5200, 3600, 3800, 4820)[idx])
-                val savingsBal  = BigDecimal(listOf(9800, 10300, 10800, 11300, 11850, 12400)[idx])
-                val brokerageBal = BigDecimal(listOf(14200, 15100, 16000, 16800, 17600, 18500)[idx])
-                val retirementBal = BigDecimal(listOf(48000, 49200, 50400, 51400, 52800, 54200)[idx])
-                val snapDate = date(ms.year, ms.month, 28)
-                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = checkingBal,   accountId = checking.id))
-                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = savingsBal,    accountId = savings.id))
-                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = brokerageBal,  accountId = brokerage.id))
-                db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = retirementBal, accountId = retirement.id))
+    private suspend fun seedSnapshots(r: SeedRefs, year: Int, month: Int, idx: Int, isCurrent: Boolean) {
+        // The current month is snapshotted as of today rather than the 28th, so
+        // the net-worth chart runs all the way to the right edge instead of
+        // stopping a month short.
+        val checkingBal   = BigDecimal(listOf(3100, 3350, 5200, 3600, 3800, 4820)[idx])
+        val savingsBal    = BigDecimal(listOf(9800, 10300, 10800, 11300, 11850, 12400)[idx])
+        val brokerageBal  = BigDecimal(listOf(14200, 15100, 16000, 16800, 17600, 18500)[idx])
+        val retirementBal = BigDecimal(listOf(48000, 49200, 50400, 51400, 52800, 54200)[idx])
+        val loanBal       = BigDecimal(listOf(-19800, -19500, -19200, -18900, -18600, -18300)[idx])
+        val cardBal       = BigDecimal(listOf(-720, -655, -910, -600, -745, -680)[idx])
+        val snapDate = if (isCurrent) Date() else date(year, month, 28)
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = checkingBal,   accountId = r.checking.id))
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = savingsBal,    accountId = r.savings.id))
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = brokerageBal,  accountId = r.brokerage.id))
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = retirementBal, accountId = r.retirement.id))
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = loanBal,       accountId = r.studentLoan.id))
+        db.netWorthDao().insertSnapshot(BalanceSnapshotEntity(date = snapDate, balance = cardBal,       accountId = r.creditCard.id))
+    }
+
+    /**
+     * Holdings and trades for the brokerage and 401(k), so the investment
+     * surfaces have something to show instead of an empty state.
+     */
+    private suspend fun seedInvestments(brokerage: AccountEntity, retirement: AccountEntity) {
+        val asOf = Date()
+
+        data class Holding(
+            val ticker: String,
+            val name: String,
+            val type: String,
+            val quantity: String,
+            val price: String,
+            val costBasis: String
+        )
+
+        val brokerageHoldings = listOf(
+            Holding("VTI",  "Vanguard Total Stock Market ETF", "etf",           "42.5",  "268.40", "9_820"),
+            Holding("VXUS", "Vanguard Total International ETF", "etf",          "58.0",  "64.15",  "3_410"),
+            Holding("AAPL", "Apple Inc.",                      "equity",        "18.0",  "214.80", "2_960"),
+            Holding("MSFT", "Microsoft Corporation",           "equity",        "9.0",   "426.10", "3_180"),
+            Holding("BND",  "Vanguard Total Bond Market ETF",  "etf",           "22.0",  "73.55",  "1_680")
+        )
+        val retirementHoldings = listOf(
+            Holding("VFIAX", "Vanguard 500 Index Admiral",     "mutual fund",   "62.0",  "528.90", "27_400"),
+            Holding("VTIAX", "Vanguard Total Intl Index Admiral", "mutual fund","310.0", "36.40",  "9_900"),
+            Holding("VBTLX", "Vanguard Total Bond Index Admiral", "mutual fund","480.0", "9.68",   "4_780")
+        )
+
+        suspend fun insertHoldings(account: AccountEntity, holdings: List<Holding>, prefix: String) {
+            for ((i, h) in holdings.withIndex()) {
+                val qty = BigDecimal(h.quantity)
+                val price = BigDecimal(h.price)
+                db.investmentDao().insertHolding(
+                    InvestmentHoldingEntity(
+                        plaidHoldingKey = "$prefix-holding-$i",
+                        plaidAccountId = "$prefix-account",
+                        plaidSecurityId = "$prefix-security-$i",
+                        tickerSymbol = h.ticker,
+                        securityName = h.name,
+                        securityType = h.type,
+                        isCashEquivalent = false,
+                        quantity = qty,
+                        institutionPrice = price,
+                        institutionValue = qty.multiply(price).setScale(2, java.math.RoundingMode.HALF_UP),
+                        costBasis = BigDecimal(h.costBasis.replace("_", "")),
+                        currencyCode = "USD",
+                        asOfDate = asOf,
+                        accountId = account.id
+                    )
+                )
             }
         }
+
+        insertHoldings(brokerage, brokerageHoldings, "brokerage")
+        insertHoldings(retirement, retirementHoldings, "retirement")
+
+        // Cash sweep so the allocation breakdown has a cash slice.
+        db.investmentDao().insertHolding(
+            InvestmentHoldingEntity(
+                plaidHoldingKey = "brokerage-cash",
+                plaidAccountId = "brokerage-account",
+                plaidSecurityId = "brokerage-cash-security",
+                tickerSymbol = "CUR:USD",
+                securityName = "Cash Sweep",
+                securityType = "cash",
+                isCashEquivalent = true,
+                quantity = BigDecimal("640"),
+                institutionPrice = BigDecimal("1"),
+                institutionValue = BigDecimal("640"),
+                costBasis = BigDecimal("640"),
+                currencyCode = "USD",
+                asOfDate = asOf,
+                accountId = brokerage.id
+            )
+        )
+
+        // Six months of contributions, one buy per month per account, plus a
+        // couple of dividends so the activity list is not all one type.
+        var seq = 0
+        for (offset in 5 downTo 0) {
+            val c = Calendar.getInstance()
+            c.add(Calendar.MONTH, -offset)
+            val year = c.get(Calendar.YEAR)
+            val month = c.get(Calendar.MONTH) + 1
+
+            suspend fun invTx(
+                account: AccountEntity,
+                day: Int,
+                name: String,
+                amount: String,
+                type: String,
+                subtype: String,
+                ticker: String?,
+                securityName: String?,
+                quantity: String?,
+                price: String?
+            ) {
+                db.investmentDao().insertTransaction(
+                    InvestmentTransactionEntity(
+                        plaidInvestmentTransactionId = "inv-tx-${seq++}",
+                        date = date(year, month, day),
+                        name = name,
+                        amount = BigDecimal(amount),
+                        fees = BigDecimal.ZERO,
+                        quantity = quantity?.let { BigDecimal(it) },
+                        price = price?.let { BigDecimal(it) },
+                        type = type,
+                        subtype = subtype,
+                        plaidSecurityId = null,
+                        tickerSymbol = ticker,
+                        securityName = securityName,
+                        currencyCode = "USD",
+                        accountId = account.id
+                    )
+                )
+            }
+
+            invTx(brokerage, 5, "Buy VTI", "500", "buy", "buy", "VTI", "Vanguard Total Stock Market ETF", "1.86", "268.40")
+            invTx(retirement, 15, "401(k) Contribution — VFIAX", "950", "buy", "buy", "VFIAX", "Vanguard 500 Index Admiral", "1.79", "528.90")
+            if (offset % 3 == 0) {
+                invTx(brokerage, 22, "VTI Dividend", "-58", "cash", "dividend", "VTI", "Vanguard Total Stock Market ETF", null, null)
+                invTx(brokerage, 22, "AAPL Dividend", "-12", "cash", "dividend", "AAPL", "Apple Inc.", null, null)
+            }
+        }
+    }
+
+    /**
+     * Liability detail for the card and the student loan — APRs, minimums, and
+     * due dates are what the debt payoff and bill surfaces read.
+     */
+    private suspend fun seedLiabilities(creditCard: AccountEntity, studentLoan: AccountEntity) {
+        val now = Date()
+        db.liabilityDao().insert(
+            LiabilityEntity(
+                plaidAccountId = "sample-credit-card",
+                kind = LiabilityKind.CREDIT,
+                lastStatementBalance = BigDecimal("680"),
+                lastStatementIssueDate = daysFromNow(-12),
+                minimumPayment = BigDecimal("35"),
+                nextPaymentDueDate = daysFromNow(9),
+                lastPaymentAmount = BigDecimal("745"),
+                lastPaymentDate = daysFromNow(-30),
+                interestRatePercentage = BigDecimal("19.99"),
+                originationPrincipal = null,
+                originationDate = null,
+                maturityDate = null,
+                loanName = null,
+                rawJSON = null,
+                updatedAt = now,
+                accountId = creditCard.id
+            )
+        )
+        db.liabilityDao().insert(
+            LiabilityEntity(
+                plaidAccountId = "sample-student-loan",
+                kind = LiabilityKind.STUDENT,
+                lastStatementBalance = BigDecimal("18300"),
+                lastStatementIssueDate = daysFromNow(-18),
+                minimumPayment = BigDecimal("300"),
+                nextPaymentDueDate = daysFromNow(16),
+                lastPaymentAmount = BigDecimal("300"),
+                lastPaymentDate = daysFromNow(-14),
+                interestRatePercentage = BigDecimal("5.25"),
+                originationPrincipal = BigDecimal("32000"),
+                originationDate = monthsFromNow(-96),
+                maturityDate = monthsFromNow(84),
+                loanName = "Navient Student Loan",
+                rawJSON = null,
+                updatedAt = now,
+                accountId = studentLoan.id
+            )
+        )
+    }
+
+    /** Midday on the same day-of-month [months] out from today. */
+    private fun monthsFromNow(months: Int): Date {
+        val c = Calendar.getInstance()
+        c.add(Calendar.MONTH, months)
+        c.set(Calendar.HOUR_OF_DAY, 12)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.time
+    }
+
+    private fun daysFromNow(days: Int): Date {
+        val c = Calendar.getInstance()
+        c.add(Calendar.DAY_OF_YEAR, days)
+        c.set(Calendar.HOUR_OF_DAY, 12)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.time
+    }
+
+    /** The next time [day] rolls around, always in the future. */
+    private fun nextOccurrenceOfDay(day: Int): Date {
+        val c = Calendar.getInstance()
+        val today = c.get(Calendar.DAY_OF_MONTH)
+        if (today >= day) c.add(Calendar.MONTH, 1)
+        c.set(Calendar.DAY_OF_MONTH, minOf(day, c.getActualMaximum(Calendar.DAY_OF_MONTH)))
+        c.set(Calendar.HOUR_OF_DAY, 12)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.time
     }
 
     private fun date(year: Int, month: Int, day: Int): Date {

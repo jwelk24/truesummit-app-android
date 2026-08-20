@@ -29,7 +29,10 @@ enum class PremiumFeature(val icon: String, val title: String, val description: 
 }
 
 object PremiumManager {
-    private val _currentTier = MutableStateFlow(SubscriptionTier.PRO)
+    // NOTE: temporarily PREMIUM so the Play Store screenshot build shows the
+    // gated surfaces (investments, liabilities, AI insights, smart alerts,
+    // subscription tracker) instead of paywalls. Restore to PRO before release.
+    private val _currentTier = MutableStateFlow(SubscriptionTier.PREMIUM)
     val currentTier: StateFlow<SubscriptionTier> = _currentTier
 
     private val _currentPeriod = MutableStateFlow(SubscriptionPeriod.MONTHLY)

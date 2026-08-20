@@ -26,6 +26,17 @@ enum class NetWorthTimeRange(val label: String, val days: Int?) {
     ALL("ALL", null)
 }
 
+/**
+ * One point on the net-worth chart.
+ *
+ * The date rides along with the value because the chart's x-axis used to label
+ * points by their list index — "0, 1, 2, 3" instead of dates.
+ */
+data class NetWorthPoint(
+    val date: Date,
+    val value: BigDecimal
+)
+
 data class NetWorthUiState(
     val netWorth: BigDecimal = BigDecimal.ZERO,
     val totalAssets: BigDecimal = BigDecimal.ZERO,
@@ -34,7 +45,7 @@ data class NetWorthUiState(
     val liabilities: List<AccountEntity> = emptyList(),
     val holdings: List<InvestmentHoldingEntity> = emptyList(),
     val timeRange: NetWorthTimeRange = NetWorthTimeRange.MONTH_3,
-    val chartPoints: List<BigDecimal> = emptyList(),
+    val chartPoints: List<NetWorthPoint> = emptyList(),
     val currentTier: SubscriptionTier = SubscriptionTier.NONE,
     val milestone: NetWorthMilestone? = null,
     val delta: BigDecimal? = null,
@@ -80,23 +91,28 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
                 .fold(BigDecimal.ZERO) { acc, e -> acc.add(e.value.balance) }
             val dayLiabs = latestPerAccount.entries.filter { it.key in liabIds }
                 .fold(BigDecimal.ZERO) { acc, e -> acc.add(e.value.balance.abs()) }
-            dayAssets.subtract(dayLiabs)
+            val (year, monthIndex, day) = key
+            val pointDate = Calendar.getInstance().apply {
+                set(year, monthIndex, day, 12, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+            NetWorthPoint(date = pointDate, value = dayAssets.subtract(dayLiabs))
         }
 
         val netWorth = totalAssets.subtract(totalLiabs)
         // Estimate monthly change from the last 30 days of chart points
         val monthlyChange = if (chartPoints.size >= 2) {
             val recent = chartPoints.takeLast(30)
-            recent.last().subtract(recent.first()).divide(BigDecimal(recent.size).max(BigDecimal.ONE), 2, RoundingMode.HALF_UP)
+            recent.last().value.subtract(recent.first().value).divide(BigDecimal(recent.size).max(BigDecimal.ONE), 2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
         val milestone = if (netWorth > BigDecimal.ZERO || monthlyChange > BigDecimal.ZERO)
             NetWorthProjectorService.project(netWorth, monthlyChange)
         else null
 
         // Delta vs the start of the selected range, mirroring iOS's "vs Xd ago" chip.
-        val delta = chartPoints.firstOrNull()?.let { past -> netWorth.subtract(past) }
+        val delta = chartPoints.firstOrNull()?.let { past -> netWorth.subtract(past.value) }
         val deltaPercent = delta?.let { d ->
-            val pastValue = chartPoints.first().abs()
+            val pastValue = chartPoints.first().value.abs()
             if (pastValue > BigDecimal("0.01")) d.toDouble() / pastValue.toDouble() * 100.0 else null
         }
 

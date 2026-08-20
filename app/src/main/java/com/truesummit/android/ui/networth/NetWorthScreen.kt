@@ -27,14 +27,18 @@ import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.truesummit.android.billing.SubscriptionTier
 import com.truesummit.android.data.entity.AccountEntity
+import com.truesummit.android.ui.networth.viewmodel.NetWorthPoint
 import com.truesummit.android.ui.networth.viewmodel.NetWorthTimeRange
 import com.truesummit.android.ui.networth.viewmodel.NetWorthUiState
 import com.truesummit.android.ui.networth.viewmodel.NetWorthViewModel
 import com.truesummit.android.ui.transactions.formatCurrency
 import java.math.BigDecimal
+import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -253,11 +257,67 @@ fun TimeRangeSelector(
     }
 }
 
+/**
+ * Abbreviates a value for a chart axis: 70940 -> "$71k", 1250000 -> "$1.3M".
+ *
+ * Axis ticks land on arbitrary values, so the full currency format printed
+ * things like "$60,805.72" — eight characters of noise per tick on a label
+ * whose only job is to give the eye a rough magnitude.
+ */
+private fun formatAxisCurrency(value: Double, span: Double): String {
+    val abs = kotlin.math.abs(value)
+    val sign = if (value < 0) "-" else ""
+    // Decimals come from how much ground the axis covers, not from the
+    // magnitude of the value. Ticks are evenly spaced, so rounding a narrow
+    // range to whole units makes them read as uneven — $66k, $67k, $69k, $70k.
+    return when {
+        abs >= 1_000_000 -> {
+            val decimals = if (span < 5_000_000) 2 else 1
+            "$sign$" + String.format(Locale.US, "%.${decimals}fM", abs / 1_000_000)
+        }
+        abs >= 1_000 -> {
+            val decimals = if (span < 20_000) 1 else 0
+            "$sign$" + String.format(Locale.US, "%.${decimals}fk", abs / 1_000)
+        }
+        else -> "$sign$" + String.format(Locale.US, "%.0f", abs)
+    }
+}
+
 @Composable
-fun NetWorthChart(points: List<BigDecimal>) {
+fun NetWorthChart(points: List<NetWorthPoint>) {
     if (points.size < 2) return
-    
-    val chartEntryModel = entryModelOf(*(points.map { it.toFloat() }.toTypedArray()))
+
+    val chartEntryModel = entryModelOf(*(points.map { it.value.toFloat() }.toTypedArray()))
+
+    // Points are plotted at their list index, so an axis label has to look the
+    // date back up by index. Once the series spans more than about two months,
+    // day numbers stop fitting, so drop to the month alone.
+    val spanDays = ((points.last().date.time - points.first().date.time) /
+        (1000L * 60 * 60 * 24)).toInt()
+    val labelPattern = if (spanDays > 70) "MMM" else "MMM d"
+    val labelFormat = remember(labelPattern) { SimpleDateFormat(labelPattern, Locale.US) }
+
+    // Show at most ~5 date labels regardless of how many points there are.
+    val labelSpacing = remember(points.size) { maxOf(1, points.size / 5) }
+
+    // Frame the y-axis around the data rather than anchoring it at zero. On a
+    // balance in the tens of thousands, a zero baseline squashes the whole
+    // series into the top sliver of the card and real movement reads as flat.
+    // The axis labels still carry the actual values, so the numbers are
+    // unchanged — only the window onto them is tighter.
+    val (axisMinY, axisMaxY) = remember(points) {
+        val values = points.map { it.value.toFloat() }
+        val dataMin = values.min()
+        val dataMax = values.max()
+        val span = dataMax - dataMin
+        // A perfectly flat series has no span to pad, so fall back to a
+        // proportion of the value itself to avoid a zero-height axis.
+        val padding = if (span > 0f) span * 0.18f else maxOf(kotlin.math.abs(dataMax) * 0.1f, 1f)
+        val paddedMin = dataMin - padding
+        // Don't introduce a negative axis for an all-positive series.
+        val min = if (dataMin >= 0f && paddedMin < 0f) 0f else paddedMin
+        min to (dataMax + padding)
+    }
 
     Card(
         modifier = Modifier
@@ -274,12 +334,28 @@ fun NetWorthChart(points: List<BigDecimal>) {
         ProvideChartStyle(m3ChartStyle()) {
             Box(modifier = Modifier.padding(16.dp)) {
                 Chart(
-                    chart = lineChart(),
+                    chart = lineChart(
+                        axisValuesOverrider = remember(axisMinY, axisMaxY) {
+                            AxisValuesOverrider.fixed(minY = axisMinY, maxY = axisMaxY)
+                        }
+                    ),
                     model = chartEntryModel,
                     startAxis = rememberStartAxis(
-                        valueFormatter = { value, _ -> formatCurrency(value.toDouble()) }
+                        valueFormatter = { value, _ ->
+                            formatAxisCurrency(value.toDouble(), (axisMaxY - axisMinY).toDouble())
+                        },
+                        itemPlacer = remember { AxisItemPlacer.Vertical.default(maxItemCount = 5) }
                     ),
-                    bottomAxis = rememberBottomAxis(),
+                    bottomAxis = rememberBottomAxis(
+                        valueFormatter = { value, _ ->
+                            points.getOrNull(value.toInt())
+                                ?.let { labelFormat.format(it.date) }
+                                .orEmpty()
+                        },
+                        itemPlacer = remember(labelSpacing) {
+                            AxisItemPlacer.Horizontal.default(spacing = labelSpacing)
+                        }
+                    ),
                     modifier = Modifier.fillMaxSize()
                 )
             }
